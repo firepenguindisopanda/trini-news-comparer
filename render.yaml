@@ -1,0 +1,70 @@
+# Render Blueprint - Trinidad News Comparer
+#
+# Deploy with:
+#   render blueprint launch
+# or connect this repo to Render and it auto-detects render.yaml.
+#
+# Two services:
+#   1. Web Service  - Express API + React SPA
+#   2. Worker       - Background scrape-and-cache loop
+#
+# Both share the same build step; the start command differs.
+
+services:
+  # Web Service
+  - type: web
+    name: trinidad-news-comparer
+    runtime: node
+    repo: https://github.com/YOUR_USER/trinidad-news-comparer  # change me
+    plan: starter
+    region: virginia  # closest to T&T for lowest scraper latency
+
+    buildCommand: npm run build
+    startCommand: npm run start
+
+    healthCheckPath: /api/cache/health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NVIDIA_NIM_API_KEY
+        sync: false
+      - key: UPSTASH_REDIS_URL
+        sync: false
+      - key: UPSTASH_REDIS_TOKEN
+        sync: false
+      - key: PUSHER_APP_ID
+        sync: false
+      - key: PUSHER_KEY
+        sync: false
+      - key: PUSHER_SECRET
+        sync: false
+      - key: PUSHER_CLUSTER
+        value: us2
+      - key: VITE_PUSHER_KEY
+        sync: false
+      - key: VITE_PUSHER_CLUSTER
+        value: us2
+      - key: APP_URL
+        value: https://trinidad-news-comparer.onrender.com  # change me
+
+  # Background Worker
+  - type: worker
+    name: trinidad-news-comparer-worker
+    runtime: node
+    repo: https://github.com/YOUR_USER/trinidad-news-comparer  # change me
+    plan: starter
+    region: virginia
+
+    buildCommand: npm run build
+    startCommand: npm run start:worker
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: UPSTASH_REDIS_URL
+        sync: false
+      - key: UPSTASH_REDIS_TOKEN
+        sync: false
+      - key: WORKER_SCRAPE_INTERVAL_MINUTES
+        value: "5"

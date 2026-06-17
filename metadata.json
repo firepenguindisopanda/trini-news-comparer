@@ -1,0 +1,6 @@
+{
+  "name": "Trinidad News Comparer",
+  "description": "Compare latest headlines, reporting slants, and perspectives across major news stations and outlets in Trinidad and Tobago in real time.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
