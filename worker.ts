@@ -28,7 +28,7 @@ import {
 //
 
 const SCRAPE_INTERVAL_MS =
-  (parseInt(process.env.WORKER_SCRAPE_INTERVAL_MINUTES || "5", 10)) * 60_000;
+  (parseInt(process.env.WORKER_SCRAPE_INTERVAL_MINUTES || "60", 10)) * 60_000;
 
 //
 // Helpers
