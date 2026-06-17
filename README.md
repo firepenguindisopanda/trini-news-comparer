@@ -2,11 +2,11 @@
 
 **Deconstruct slant, framing, and omissions across major Trinidadian news sources.**
 
-An open platform that reveals how different newsrooms cover the same story — powered by a multi-agent NVIDIA NIMs LLM pipeline.
+An open platform that reveals how different newsrooms cover the same story - powered by a multi-agent NVIDIA NIMs LLM pipeline.
 
-> "When someone shares misinformation that confirms their world view, they are not just passing along bad information — they are participating in a system that rewards intellectual shortcuts over careful analysis, emotional reaction over thoughtful consideration, and tribal loyalty over independent judgement. The algorithm feeds them more of the curated content. This is what researchers call **filter bubbles**."
+> "When someone shares misinformation that confirms their world view, they are not just passing along bad information - they are participating in a system that rewards intellectual shortcuts over careful analysis, emotional reaction over thoughtful consideration, and tribal loyalty over independent judgement. The algorithm feeds them more of the curated content. This is what researchers call **filter bubbles**."
 
-This tool is not a replacement for reading articles. It is a lens to help you see the editorial choices each newsroom makes — so you can read more critically and compare coverage before forming an opinion.
+This tool is not a replacement for reading articles. It is a lens to help you see the editorial choices each newsroom makes - so you can read more critically and compare coverage before forming an opinion.
 
 ---
 
@@ -53,9 +53,9 @@ User → Express API (202 Accepted)
 ## Prerequisites
 
 - **Node.js** 18+ (tested on 22)
-- **NVIDIA NIMs API key** — get one from [build.nvidia.com](https://build.nvidia.com)
-- **Upstash Redis** account — [upstash.com](https://upstash.com) (free tier works)
-- **Pusher Channels** account — [pusher.com](https://pusher.com) (free tier: 200K messages/day)
+- **NVIDIA NIMs API key** - get one from [build.nvidia.com](https://build.nvidia.com)
+- **Upstash Redis** account - [upstash.com](https://upstash.com) (free tier works)
+- **Pusher Channels** account - [pusher.com](https://pusher.com) (free tier: 200K messages/day)
 
 ---
 
@@ -80,14 +80,14 @@ cp .env.example .env
 Required variables:
 
 ```env
-# NVIDIA NIMs — primary LLM provider for the 5-agent pipeline
+# NVIDIA NIMs - primary LLM provider for the 5-agent pipeline
 NVIDIA_NIM_API_KEY="nvapi-your-key-here"
 
-# Upstash Redis — caching and rate limiting
+# Upstash Redis - caching and rate limiting
 UPSTASH_REDIS_URL="https://your-endpoint.upstash.io"
 UPSTASH_REDIS_TOKEN="your-token"
 
-# Pusher Channels — real-time progress events
+# Pusher Channels - real-time progress events
 PUSHER_APP_ID="your-app-id"
 PUSHER_KEY="your-key"
 PUSHER_SECRET="your-secret"
@@ -151,7 +151,7 @@ This project includes a [`render.yaml`](render.yaml) blueprint for one-click dep
 
 1. Push your repo to GitHub/GitLab
 2. In the Render Dashboard, create a **new Blueprint**
-3. Connect your repo — Render auto-detects `render.yaml`
+3. Connect your repo - Render auto-detects `render.yaml`
 4. Set the environment variables in the Render dashboard (or in `render.yaml`):
 
    - `NVIDIA_NIM_API_KEY`
@@ -161,7 +161,7 @@ This project includes a [`render.yaml`](render.yaml) blueprint for one-click dep
    - `VITE_PUSHER_KEY`, `VITE_PUSHER_CLUSTER`
    - `APP_URL` (set to your Render domain, e.g. `https://your-app.onrender.com`)
 
-5. Deploy — Render builds using `npm run build` and starts both services
+5. Deploy - Render builds using `npm run build` and starts both services
 
 ### Blueprint (render.yaml) Summary
 
@@ -182,7 +182,7 @@ services:
     plan: starter
 ```
 
-**Important:** Both services share the same build step. The worker shares the Redis cache with the web service — no additional infrastructure needed.
+**Important:** Both services share the same build step. The worker shares the Redis cache with the web service - no additional infrastructure needed.
 
 ---
 
@@ -190,20 +190,20 @@ services:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `NVIDIA_NIM_API_KEY` | Yes | — | NVIDIA NIMs API key |
+| `NVIDIA_NIM_API_KEY` | Yes | - | NVIDIA NIMs API key |
 | `NVIDIA_EXPANDER_MODEL` | No | `meta/llama-3.1-70b-instruct` | Topic expander model |
 | `NVIDIA_MATCHER_MODEL` | No | `meta/llama-3.1-70b-instruct` | Article matcher model |
 | `NVIDIA_ANALYST_MODEL` | No | `meta/llama-3.1-8b-instruct` | Per-source analyst (parallel) |
 | `NVIDIA_SYNTHESIZER_MODEL` | No | `meta/llama-3.1-70b-instruct` | Cross-source synthesizer |
 | `NVIDIA_FALLBACK_SYNTHESIZER_MODEL` | No | `nvidia/nemotron-4-340b-instruct` | Fallback for low-confidence syntheses |
 | `NVIDIA_VERIFIER_MODEL` | No | `meta/llama-3.1-70b-instruct` | Fact-check and verification |
-| `UPSTASH_REDIS_URL` | Yes | — | Upstash Redis REST endpoint |
-| `UPSTASH_REDIS_TOKEN` | Yes | — | Upstash Redis auth token |
-| `PUSHER_APP_ID` | Yes | — | Pusher Channels app ID |
-| `PUSHER_KEY` | Yes | — | Pusher Channels key (public) |
-| `PUSHER_SECRET` | Yes | — | Pusher Channels secret |
+| `UPSTASH_REDIS_URL` | Yes | - | Upstash Redis REST endpoint |
+| `UPSTASH_REDIS_TOKEN` | Yes | - | Upstash Redis auth token |
+| `PUSHER_APP_ID` | Yes | - | Pusher Channels app ID |
+| `PUSHER_KEY` | Yes | - | Pusher Channels key (public) |
+| `PUSHER_SECRET` | Yes | - | Pusher Channels secret |
 | `PUSHER_CLUSTER` | No | `us2` | Pusher cluster region |
-| `VITE_PUSHER_KEY` | Yes | — | Must match `PUSHER_KEY` (inlined into frontend bundle) |
+| `VITE_PUSHER_KEY` | Yes | - | Must match `PUSHER_KEY` (inlined into frontend bundle) |
 | `VITE_PUSHER_CLUSTER` | No | `us2` | Must match `PUSHER_CLUSTER` |
 | `APP_URL` | No | `http://localhost:3000` | Public URL (for SEO/opengraph) |
 | `WORKER_SCRAPE_INTERVAL_MINUTES` | No | `5` | Background scrape interval |
@@ -212,11 +212,11 @@ services:
 
 ## Limitations & Disclaimer
 
-- **This is NOT a replacement for reading full articles.** AI summaries provide a starting point — always click through to the original source.
+- **This is NOT a replacement for reading full articles.** AI summaries provide a starting point - always click through to the original source.
 - **We do not determine which source is "right."** Every newsroom has an editorial perspective. This tool surfaces differences so you can judge for yourself.
 - **We do not display full article text.** Copyright belongs to the respective news organisations.
 - **AI analysis quality varies.** LLMs can hallucinate, miss nuance, or mischaracterise tone. Treat the analysis as a suggestive lens, not definitive truth.
-- **Caveat lector** — let the reader beware. Cross-reference what you see here with the actual reporting.
+- **Caveat lector** - let the reader beware. Cross-reference what you see here with the actual reporting.
 
 ---
 
@@ -254,4 +254,4 @@ services:
 
 ## License
 
-MIT — use freely, attribute kindly.
+MIT - use freely, attribute kindly.
