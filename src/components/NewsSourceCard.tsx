@@ -190,7 +190,7 @@ export default function NewsSourceCard({ source }: Props) {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={`flex flex-col h-full bg-white rounded-xl border-l-[6px] ${brand.borderColor} shadow-xs hover:shadow-md transition-all duration-300 overflow-hidden relative`}
+      className={`flex flex-col h-full bg-white rounded-md border-l-[6px] ${brand.borderColor} shadow-xs hover:shadow-md transition-all duration-300 overflow-hidden relative`}
       id={`source-card-${source.sourceName.replace(/\s+/g, "-").toLowerCase()}`}
     >
       {/* Card Header */}
@@ -243,7 +243,7 @@ export default function NewsSourceCard({ source }: Props) {
                   initial={{ opacity: 0, scale: 0.95, y: 5 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="absolute right-0 bottom-full mb-2 w-64 bg-slate-900 text-white text-xs rounded-xl p-3.5 shadow-xl z-20 border border-slate-800"
+                  className="absolute right-0 bottom-full mb-2 w-64 bg-slate-900 text-white text-xs rounded-md p-3.5 shadow-xl z-20 border border-slate-800"
                 >
                   <p className="font-bold border-b border-white/10 pb-1 mb-1.5 flex items-center justify-between">
                     <span>Journalistic Consistency Rating</span>
@@ -254,7 +254,7 @@ export default function NewsSourceCard({ source }: Props) {
                   </p>
                   
                   {/* Rating Selector */}
-                  <div className="bg-white/5 p-2 rounded-lg text-center">
+                  <div className="bg-white/5 p-2 rounded-md text-center">
                     <p className="text-[10px] text-slate-400 font-medium mb-1.5">
                       {userVote ? "Your tracked rating" : "Rate this outlet's accuracy"}
                     </p>
@@ -293,7 +293,7 @@ export default function NewsSourceCard({ source }: Props) {
         {/* Highlight Comparison Lists */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
           {/* Emphasized */}
-          <div className="bg-white/80 p-3 rounded-lg border border-gray-100">
+          <div className="bg-white/80 p-3 rounded-md border border-gray-100">
             <h4 className="flex items-center text-xs font-bold text-slate-900 tracking-wider uppercase mb-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5" />
               Details Emphasized
@@ -309,7 +309,7 @@ export default function NewsSourceCard({ source }: Props) {
           </div>
 
           {/* Omitted / Downplayed */}
-          <div className="bg-white/80 p-3 rounded-lg border border-gray-100">
+          <div className="bg-white/80 p-3 rounded-md border border-gray-100">
             <h4 className="flex items-center text-xs font-bold text-slate-900 tracking-wider uppercase mb-2">
               <span className="w-2 h-2 rounded-full bg-rose-500 mr-1.5" />
               Omitted / Downplayed

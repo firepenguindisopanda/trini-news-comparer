@@ -219,7 +219,7 @@ export default function App() {
       <header className="bg-white border-b border-slate-200 py-6 shadow-xs sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center space-x-3">
-            <div className="bg-red-50 p-2.5 rounded-xl border border-red-100 flex items-center justify-center">
+            <div className="bg-red-50 p-2.5 rounded-md border border-red-100 flex items-center justify-center">
               <Scale className="w-6 h-6 text-red-600" />
             </div>
             <div>
@@ -241,7 +241,7 @@ export default function App() {
             </div>
             <button
               onClick={() => setAboutOpen(true)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-red-700 hover:border-red-200 hover:bg-red-50 transition-all duration-150"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-slate-200 text-slate-500 hover:text-red-700 hover:border-red-200 hover:bg-red-50 transition-all duration-150"
             >
               <Info className="w-3 h-3" />
               <span className="font-semibold">About</span>
@@ -257,7 +257,7 @@ export default function App() {
           <div className="lg:col-span-1 space-y-6">
             
             {/* The Slant Engine Search Form */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
+            <div className="bg-white rounded-md border border-slate-200/80 p-5 shadow-xs">
               <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center">
                 <Search className="w-3.5 h-3.5 mr-1" />
                 Select News Subject
@@ -271,7 +271,7 @@ export default function App() {
                     onChange={(e) => setTopic(e.target.value)}
                     placeholder="e.g. WASA water supply, fuel excise tax, Carnival launch..."
                     disabled={loading}
-                    className="w-full text-sm bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 rounded-xl px-4 py-3 pb-3 pr-10 focus:ring-2 focus:ring-red-500 focus:bg-white focus:outline-hidden transition-all duration-200"
+                    className="w-full text-sm bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 rounded-md px-4 py-3 pb-3 pr-10 focus:ring-2 focus:ring-red-500 focus:bg-white focus:outline-hidden transition-all duration-200"
                     id="search-input"
                   />
                   <div className="absolute right-3 top-3.5 text-slate-400">
@@ -282,7 +282,7 @@ export default function App() {
                 <button
                   type="submit"
                   disabled={loading || !topic.trim()}
-                  className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wide flex items-center justify-center space-x-2 transition-all duration-200 ${
+                  className={`w-full py-2.5 px-4 rounded-md font-bold text-xs uppercase tracking-wide flex items-center justify-center space-x-2 transition-all duration-200 ${
                     loading || !topic.trim()
                       ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                       : "bg-slate-900 text-white hover:bg-slate-800 shadow-xs"
@@ -304,7 +304,7 @@ export default function App() {
               </form>
             </div>
             {/* Caribbean presets */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
+            <div className="bg-white rounded-md border border-slate-200/80 p-5 shadow-xs">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center justify-between">
                 <span className="flex items-center">
                   <TrendingUp className="w-3.5 h-3.5 mr-1" />
@@ -320,7 +320,7 @@ export default function App() {
                       handleCompare(p.query);
                     }}
                     disabled={loading}
-                    className="w-full text-left p-2.5 text-xs text-slate-700 hover:text-red-700 hover:bg-red-50/50 rounded-lg border border-slate-100 hover:border-red-100/60 transition-all duration-150 block leading-snug"
+                    className="w-full text-left p-2.5 text-xs text-slate-700 hover:text-red-700 hover:bg-red-50/50 rounded-md border border-slate-100 hover:border-red-100/60 transition-all duration-150 block leading-snug"
                     id={`preset-btn-${idx}`}
                   >
                     {p.label}
@@ -330,7 +330,7 @@ export default function App() {
             </div>
 
             {/* Live Scraped Feed Card */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-col h-[380px]">
+            <div className="bg-white rounded-md border border-slate-200/80 p-5 shadow-xs flex flex-col h-[380px]">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">
                   <Newspaper className="w-3.5 h-3.5 mr-1 text-slate-500" />
@@ -383,7 +383,7 @@ export default function App() {
                           setTopic(art.title);
                           handleCompare(art.title);
                         }}
-                        className="p-2 rounded-lg border border-slate-100 bg-slate-50/40 hover:bg-red-50/50 hover:border-red-100 cursor-pointer transition text-left group"
+                        className="p-2 rounded-md border border-slate-100 bg-slate-50/40 hover:bg-red-50/50 hover:border-red-100 cursor-pointer transition text-left group"
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className={`text-[8px] font-extrabold uppercase px-1 rounded-sm ${
@@ -411,7 +411,7 @@ export default function App() {
 
             {/* History stack */}
             {history.length > 0 && (
-              <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
+              <div className="bg-white rounded-md border border-slate-200/80 p-5 shadow-xs">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">
                     <History className="w-3.5 h-3.5 mr-1" />
@@ -433,7 +433,7 @@ export default function App() {
                         handleCompare(h.topic);
                       }}
                       disabled={loading}
-                      className="w-full text-left p-2 rounded-lg hover:bg-slate-50 transition-all font-sans text-xs flex justify-between items-center group border border-dashed border-gray-100"
+                      className="w-full text-left p-2 rounded-md hover:bg-slate-50 transition-all font-sans text-xs flex justify-between items-center group border border-dashed border-gray-100"
                       id={`history-btn-${h.id}`}
                     >
                       <div className="truncate pr-1">
@@ -483,7 +483,7 @@ export default function App() {
                   </div>
 
                   {/* Active Processing Step - live from Pusher */}
-                  <div className="bg-slate-50 border border-slate-200/50 rounded-xl px-4 py-2.5 text-xs font-mono text-slate-600 max-w-md w-full text-center shadow-2xs h-10 flex items-center justify-center">
+                  <div className="bg-slate-50 border border-slate-200/50 rounded-md px-4 py-2.5 text-xs font-mono text-slate-600 max-w-md w-full text-center shadow-2xs h-10 flex items-center justify-center">
                     {jobState.message || "Starting analysis..."}
                   </div>
                 </motion.div>
@@ -495,7 +495,7 @@ export default function App() {
                   key="error"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="bg-rose-50 border border-rose-200 text-rose-950 p-6 rounded-2xl flex items-start space-x-3 shadow-2xs"
+                  className="bg-rose-50 border border-rose-200 text-rose-950 p-6 rounded-md flex items-start space-x-3 shadow-2xs"
                 >
                   <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5 flex-shrink-0" />
                   <div>
@@ -518,7 +518,7 @@ export default function App() {
                   animate={{ opacity: 1 }}
                   className="bg-white rounded-3xl border border-slate-100 p-8 md:p-16 text-center shadow-xs flex flex-col justify-center items-center"
                 >
-                  <div className="bg-slate-50 p-4 rounded-2xl mb-4 text-slate-400">
+                  <div className="bg-slate-50 p-4 rounded-md mb-4 text-slate-400">
                     <Scale className="w-10 h-10" />
                   </div>
                   <h3 className="text-lg font-bold text-slate-800 tracking-tight mb-2">
@@ -529,7 +529,7 @@ export default function App() {
                   </p>
                   
                   {/* Tip banner */}
-                  <div className="bg-slate-50/60 p-4 border border-dashed border-slate-200 rounded-xl max-w-lg leading-relaxed text-[11px] text-slate-500 font-mono text-left space-y-1">
+                  <div className="bg-slate-50/60 p-4 border border-dashed border-slate-200 rounded-md max-w-lg leading-relaxed text-[11px] text-slate-500 font-mono text-left space-y-1">
                     <span className="font-bold text-slate-600 uppercase">💡 Journalistic Slant Audit Tip:</span>
                     <p>
                       Pay attention to which facts make the headlines. Investigative publications often emphasize accountability and point-of-failures, while state-focused sources highlight announcements, official briefings, and institutional defenses.
@@ -577,7 +577,7 @@ export default function App() {
                   {/* The Big Slate Comparative Synthesis Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Perspective Slant differences */}
-                    <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xs">
+                    <div className="bg-slate-900 text-white p-6 rounded-md shadow-xs">
                       <h4 className="text-xs uppercase font-bold tracking-widest text-red-400/90 flex items-center mb-2.5">
                         <Scale className="w-3.5 h-3.5 mr-1" />
                         Deconstructed Framing & Slant
@@ -588,7 +588,7 @@ export default function App() {
                     </div>
 
                     {/* How to read takeaway */}
-                    <div className="bg-slate-100 border border-slate-200 p-6 rounded-2xl">
+                    <div className="bg-slate-100 border border-slate-200 p-6 rounded-md">
                       <h4 className="text-xs uppercase font-bold tracking-widest text-slate-500 flex items-center mb-2.5">
                         <Award className="w-3.5 h-3.5 mr-1" />
                         Journalism Audit Takeaway

@@ -42,7 +42,7 @@ export default function AboutDrawer({ open, onClose }: AboutDrawerProps) {
             {/* Close button */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 rounded-xl hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-700"
+              className="absolute top-4 right-4 p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-700"
               aria-label="Close about panel"
             >
               <X className="w-5 h-5" />
@@ -52,7 +52,7 @@ export default function AboutDrawer({ open, onClose }: AboutDrawerProps) {
             <div className="p-6 md:p-8 pt-16">
               {/* Header ==== */}
               <div className="flex items-center gap-3 mb-2">
-                <div className="bg-red-50 p-2 rounded-xl border border-red-100">
+                <div className="bg-red-50 p-2 rounded-lg border border-red-100">
                   <Scale className="w-5 h-5 text-red-600" />
                 </div>
                 <h2 className="text-lg font-black text-slate-900 tracking-tight">
@@ -61,7 +61,7 @@ export default function AboutDrawer({ open, onClose }: AboutDrawerProps) {
               </div>
 
               {/* Mission / Filter Bubble Quote ==== */}
-              <div className="bg-slate-900 rounded-2xl p-5 md:p-6 mb-6 mt-4">
+              <div className="bg-slate-900 rounded-lg p-5 md:p-6 mb-6 mt-4">
                 <p className="text-sm text-slate-300 leading-relaxed italic">
                   "When someone shares misinformation that confirms their world view,
                   they are not just passing along bad information - they are participating
@@ -118,7 +118,7 @@ export default function AboutDrawer({ open, onClose }: AboutDrawerProps) {
                   <AlertTriangle className="w-3 h-3" />
                   Work in Progress
                 </h3>
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2.5">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2.5">
                   <p className="text-xs text-blue-900 leading-relaxed">
                     This tool is a <strong>work in progress</strong> — a personal exercise in
                     building, experimenting, and learning. The long-term goal is to use it as a
@@ -146,7 +146,7 @@ export default function AboutDrawer({ open, onClose }: AboutDrawerProps) {
                   <AlertTriangle className="w-3 h-3 text-amber-500" />
                   Important Limitations
                 </h3>
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2.5">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2.5">
                   <div className="flex gap-2.5">
                     <span className="text-amber-600 font-bold text-xs flex-shrink-0 mt-0.5">NOT</span>
                     <p className="text-xs text-amber-900 leading-relaxed">
@@ -204,7 +204,7 @@ export default function AboutDrawer({ open, onClose }: AboutDrawerProps) {
                   <Shield className="w-3 h-3" />
                   Transparency
                 </h3>
-                <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-xs text-slate-600 leading-relaxed">
+                <div className="bg-slate-50 rounded-lg p-4 space-y-2 text-xs text-slate-600 leading-relaxed">
                   <p>
                     <strong>AI Provider:</strong> All analysis runs through NVIDIA NIMs (Llama-3.1-70B,
                     Llama-3.1-8B, Nemotron-4-340B). No user search data is stored or used for model training.
