@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'node:22-alpine'
+            args '-v /var/run/docker.sock:/var/run/docker.sock -v /home/swepi/Desktop:/home/swepi/Desktop'
+        }
+    }
 
     environment {
         PRODUCTION_DIR = "/home/swepi/Desktop/trinidad-news-comparer"
@@ -8,6 +13,7 @@ pipeline {
     stages {
         stage('Setup') {
             steps {
+                sh 'apk add --no-cache docker-cli rsync'
                 sh 'npm ci'
             }
         }
@@ -21,12 +27,12 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh """
-                    sudo rsync -av --delete --chown=swepi:swepi \
+                    rsync -av --delete \
                         --exclude='.env' \
                         --exclude='node_modules/' \
                         --exclude='.git/' \
-                        ./ ${PRODUCTION_DIR}/
-                    cd ${PRODUCTION_DIR} && docker compose up -d --build
+                        ./ \${PRODUCTION_DIR}/
+                    cd \${PRODUCTION_DIR} && docker compose up -d --build
                 """
             }
         }
