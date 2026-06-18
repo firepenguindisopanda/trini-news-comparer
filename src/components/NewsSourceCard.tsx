@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { NewsSourceReport } from "../types";
+import { formatTimestamp } from "../utils";
 import { ExternalLink, CheckCircle, Flame, ShieldAlert, Award, Star, Info, Heart } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -193,7 +194,7 @@ export default function NewsSourceCard({ source }: Props) {
       id={`source-card-${source.sourceName.replace(/\s+/g, "-").toLowerCase()}`}
     >
       {/* Card Header */}
-      <div className="p-5 border-b border-gray-100 pb-4">
+      <div className="p-4 border-b border-gray-100 pb-3">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full tracking-wide ${brand.badgeBg}`}>
             {brand.brandLabel}
@@ -210,7 +211,7 @@ export default function NewsSourceCard({ source }: Props) {
 
         <div className="flex items-center justify-between mt-2.5">
           <div className="text-[11px] font-mono text-gray-400">
-            Published: {source.publishDate || "Live / Recent"}
+            Published: {source.publishDate ? formatTimestamp(source.publishDate) : "Live / Recent"}
           </div>
 
           {/* Star Consistency Indicator & Interactive Rating */}
@@ -284,7 +285,7 @@ export default function NewsSourceCard({ source }: Props) {
       </div>
 
       {/* Synopsis Section */}
-      <div className={`p-5 flex-1 ${brand.bgLight}`}>
+      <div className={`p-4 flex-1 ${brand.bgLight}`}>
         <p className="text-sm text-gray-700 leading-relaxed italic mb-4">
           &ldquo;{source.synopsis}&rdquo;
         </p>
@@ -330,7 +331,7 @@ export default function NewsSourceCard({ source }: Props) {
       </div>
 
       {/* Support Direct Outbound Referral & Publicity Protection Panel */}
-      <div className="p-4 bg-slate-50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+      <div className="p-3 bg-slate-50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
         <div className="flex items-center space-x-1.5 text-slate-500 md:max-w-[55%] text-left">
           <Heart className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
           <span className="text-[10px] leading-tight font-medium">

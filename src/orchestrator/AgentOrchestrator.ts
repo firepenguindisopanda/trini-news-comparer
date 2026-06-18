@@ -25,6 +25,9 @@ import { publishProgress, type ProgressPayload } from "../../server/services/pus
 import {
   setCachedComparison,
 } from "../../server/services/cache.js";
+import { childLogger } from "../../server/services/logger.js";
+
+const log = childLogger({ module: "orchestrator" });
 
 //
 // Types
@@ -161,7 +164,7 @@ export class AgentOrchestrator {
         `Expanded to ${output.searchTerms.length} search terms`, 20);
       return output;
     } catch (err) {
-      console.warn("[TopicExpander] Failed, using fallback:", (err as Error).message);
+      log.warn({ err: (err as Error).message }, "TopicExpander failed, using fallback");
       await this.pub(sessionId, "topicExpander", "failed", "Topic expansion failed, using original", 20);
       return { expandedTopic: topic, searchTerms: [topic], entities: [], originalTopic: topic };
     }
@@ -214,7 +217,7 @@ export class AgentOrchestrator {
         `Matched ${matched.length} articles`, 40, { matchCount: matched.length });
       return output;
     } catch (err) {
-      console.warn("[ArticleMatcher] Failed, using keyword fallback:", (err as Error).message);
+      log.warn({ err: (err as Error).message }, "ArticleMatcher failed, using keyword fallback");
       return this.keywordFallback(expanded, articles, sessionId);
     }
   }
@@ -289,7 +292,7 @@ export class AgentOrchestrator {
         articlesAnalyzed: input.matchedArticles.length,
       };
     } catch (err) {
-      console.warn(`[SourceAnalyst:${input.sourceName}] Failed:`, (err as Error).message);
+      log.warn({ err: (err as Error).message, sourceName: input.sourceName }, "SourceAnalyst failed");
       return {
         sourceName: input.sourceName,
         headline: input.matchedArticles[0]?.title || "",
@@ -325,8 +328,11 @@ export class AgentOrchestrator {
       });
       return {
         synthesis: {
-          overallAnalysis: data.synthesis?.overallAnalysis ?? "Analysis unavailable.",
-          keyTakeaway: data.synthesis?.keyTakeaway ?? "Compare headlines carefully.",
+          overallAnalysis: data.synthesis?.overallAnalysis ||
+            `Analysis of "${input.topic}" across ${input.sourceReports.length} source${input.sourceReports.length !== 1 ? 's' : ''}. ` +
+            input.sourceReports.map(s => `${s.sourceName}: ${s.toneAngle}.`).join(" "),
+          keyTakeaway: data.synthesis?.keyTakeaway ||
+            `Each outlet framed "${input.topic}" with different editorial priorities. Compare the emphasized vs omitted details above.`,
         },
         detectedBiasPatterns: Array.isArray(data.detectedBiasPatterns) ? data.detectedBiasPatterns : [],
         sourceAgreementLevel: ["high", "medium", "low"].includes(data.sourceAgreementLevel ?? "")
@@ -341,7 +347,7 @@ export class AgentOrchestrator {
 
       // If confidence is low AND we have a bigger model, retry with it
       if (primary.confidenceScore < 0.5) {
-        console.log("[Synthesizer] Low confidence, trying Nemotron-340B fallback");
+        log.info("Low confidence synthesis, trying Nemotron-340B fallback");
         try {
           const fallback = await tryModel(this.cfg.fallbackSynthesizerModel);
           const merged = fallback.confidenceScore > primary.confidenceScore ? fallback : primary;
@@ -356,7 +362,7 @@ export class AgentOrchestrator {
         { confidenceScore: primary.confidenceScore, agreementLevel: primary.sourceAgreementLevel });
       return primary;
     } catch (err) {
-      console.warn("[Synthesizer] Failed:", (err as Error).message);
+      log.warn({ err: (err as Error).message }, "Synthesizer failed");
       await this.pub(sessionId, "synthesizer", "failed", "Synthesis failed, using template", 85);
       return {
         synthesis: {
@@ -401,7 +407,7 @@ export class AgentOrchestrator {
         { verified: output.verified, issueCount: output.issues.length });
       return output;
     } catch (err) {
-      console.warn("[Verifier] Failed:", (err as Error).message);
+      log.warn({ err: (err as Error).message }, "Verifier failed");
       await this.pub(sessionId, "verifier", "failed", "Verification unavailable", 95);
       return { verified: false, issues: ["Verification agent failed"], corrections: null, confidenceScore: 0.1, verificationNotes: "" };
     }
@@ -477,16 +483,17 @@ export class AgentOrchestrator {
     };
 
     if (!verifierOutput.verified && verifierOutput.issues.length > 0) {
-      console.warn(`[Orchestrator] Verification issues for "${topic}":`, verifierOutput.issues);
+      log.warn({ topic, issues: verifierOutput.issues }, "Verification issues detected");
     }
 
     // Cache result
     await setCachedComparison(topic, result);
 
     const totalCost = this.nvidia.getTotalCost();
-    console.log(`[Orchestrator] Complete - ${validReports.length} sources, verified: ${verifierOutput.verified}, cost: $${totalCost.toFixed(5)}`);
+    log.info({ sources: validReports.length, verified: verifierOutput.verified, cost: Number(totalCost.toFixed(5)) }, "Pipeline complete");
 
     await this.pub(sessionId, "orchestrator", "completed", "Analysis complete!", 100, {
+      result,
       sourceCount: validReports.length,
       verified: verifierOutput.verified,
       cost: totalCost,

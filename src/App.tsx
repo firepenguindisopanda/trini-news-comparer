@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { NewsComparisonResult, SearchHistoryItem } from "./types";
+import { formatTimestamp } from "./utils";
 import NewsSourceCard from "./components/NewsSourceCard";
 import { useComparisonJob } from "./hooks/useComparisonJob";
 import type { JobStatus } from "./hooks/useComparisonJob";
@@ -29,6 +30,9 @@ const PRESET_TOPICS = [
   { label: "Carnival Preparations & Cultural Grants", query: "Trinidad Carnival band launch artists NCC cultural allocations" },
   { label: "Tobago Autonomy & House of Assembly Discussions", query: "Tobago House of Assembly THA autonomy Chief Secretary" }
 ];
+
+// API base URL - set via Vite env for subpath deployment (e.g. /news-comparer)
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
 // Pusher config - set via Vite env
 const PUSHER_CONFIGURED = Boolean(import.meta.env.VITE_PUSHER_KEY);
@@ -71,7 +75,7 @@ export default function App() {
   const fetchScrapedArticles = async () => {
     setLoadingScraped(true);
     try {
-      const res = await fetch("/api/news/latest");
+      const res = await fetch(`${API_BASE}/api/news/latest`);
       if (res.ok) {
         const data = await res.json();
         setScrapedArticles(data.articles || []);
@@ -99,20 +103,15 @@ export default function App() {
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/news/compare/status/${sessionId}`);
+        const res = await fetch(`${API_BASE}/api/news/compare/status/${sessionId}`);
         if (!res.ok) return;
         const data = await res.json();
 
         if (data.status === "completed") {
           clearInterval(interval);
-          // Re-fetch the result via the compare endpoint (cached now)
-          const compareRes = await fetch("/api/news/compare", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ topic }),
-          });
-          if (compareRes.ok) {
-            const resultData: NewsComparisonResult = await compareRes.json();
+          // The status endpoint now returns the result directly
+          if (data.result) {
+            const resultData = data.result as NewsComparisonResult;
             setResult(resultData);
             addToHistory(topic, resultData.summary);
           }
@@ -169,7 +168,7 @@ export default function App() {
     setTopic(searchQuery);
 
     try {
-      const response = await fetch("/api/news/compare", {
+      const response = await fetch(`${API_BASE}/api/news/compare`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic: searchQuery.trim() }),
@@ -218,7 +217,7 @@ export default function App() {
 
       {/* Main Header Container */}
       <header className="bg-white border-b border-slate-200 py-6 shadow-xs sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-2 sm:px-3 lg:px-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center space-x-3">
             <div className="bg-red-50 p-2.5 rounded-xl border border-red-100 flex items-center justify-center">
               <Scale className="w-6 h-6 text-red-600" />
@@ -251,8 +250,8 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <main className="max-w-7xl mx-auto px-2 sm:px-3 lg:px-4 mt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           
           {/* Left Column - Controls, Preset Choices, Search History */}
           <div className="lg:col-span-1 space-y-6">
@@ -568,7 +567,7 @@ export default function App() {
                     </p>
 
                     <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between text-[11px] font-mono text-slate-400 gap-2">
-                      <span>Live Audit Timestamp: {result.lastUpdated || "June 2026 / Live"}</span>
+                      <span>Live Audit Timestamp: {formatTimestamp(result.lastUpdated)}</span>
                       <span className="flex items-center text-slate-500 bg-slate-50 px-2 py-0.5 rounded-sm">
                         <Scale className="w-3.5 h-3.5 mr-1" /> Grounded Side-by-Side Newsroom Matrix
                       </span>
@@ -612,7 +611,7 @@ export default function App() {
                   </div>
 
                   {/* News Outlet Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {result.sourcesFound.map((src, idx) => (
                       <NewsSourceCard key={idx} source={src} />
                     ))}

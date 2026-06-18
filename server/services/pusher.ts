@@ -9,6 +9,9 @@
  */
 
 import Pusher from "pusher";
+import { childLogger } from "./logger.js";
+
+const log = childLogger({ module: "pusher" });
 
 //
 // Singleton
@@ -25,16 +28,16 @@ function getClient(): Pusher | null {
   const cluster = process.env.PUSHER_CLUSTER || "us2";
 
   if (!appId || !key || !secret) {
-    console.warn("[Pusher] Missing PUSHER_APP_ID, PUSHER_KEY, or PUSHER_SECRET - events disabled");
+    log.warn("Missing PUSHER_APP_ID, PUSHER_KEY, or PUSHER_SECRET - events disabled");
     return null;
   }
 
   try {
     client = new Pusher({ appId, key, secret, cluster, useTLS: true });
-    console.log("[Pusher] Client initialised (cluster:", cluster, ")");
+    log.info({ cluster }, "Pusher client initialised");
     return client;
   } catch (err) {
-    console.error("[Pusher] Failed to initialise:", err);
+    log.error({ err }, "Failed to initialise Pusher");
     return null;
   }
 }
@@ -61,7 +64,7 @@ export async function publish(
   if (!p) return false;
 
   if (!validChannel(channel)) {
-    console.warn(`[Pusher] Invalid channel name: "${channel}" - dropping event`);
+    log.warn({ channel }, "Invalid channel name - dropping event");
     return false;
   }
 
@@ -69,7 +72,7 @@ export async function publish(
     await p.trigger(channel, event, data);
     return true;
   } catch (err) {
-    console.warn(`[Pusher] Failed to publish on "${channel}":${event} -`, (err as Error).message);
+    log.warn({ err, channel, event }, "Failed to publish Pusher event");
     return false;
   }
 }

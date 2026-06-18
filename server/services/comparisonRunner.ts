@@ -15,8 +15,12 @@
 import { fetchAllNewsCached, fetchAllNews, searchHeadlines } from "../../scraper.js";
 import { getCachedComparison, setCachedComparison, hashTopic } from "./cache.js";
 import { publishProgress } from "./pusher.js";
-import type { AgentOrchestrator } from "../../src/orchestrator/AgentOrchestrator.js";  // eslint-disable-line
+import { childLogger } from "./logger.js";
+import { setSessionResult } from "./sessions.js";
+import type { AgentOrchestrator } from "../../src/orchestrator/AgentOrchestrator.js";
 import type { ScrapedArticle } from "../../src/types.js";
+
+const log = childLogger({ module: "comparisonRunner" });
 
 //
 // Types
@@ -135,7 +139,7 @@ export async function runComparison(
     const matched = searchHeadlines(allScraped, topic);
     matchedArticlesCount = matched.length;
   } catch (scrapErr) {
-    console.warn("Non-blocking scraper fetch failure:", scrapErr);
+    log.warn({ err: scrapErr }, "Non-blocking scraper fetch failure");
   }
 
   await stageDone(
@@ -153,20 +157,21 @@ export async function runComparison(
 
       // CircuitBreakerOpenError means the breaker is open
       if (message.includes("Circuit breaker is OPEN")) {
-        console.warn(`[Compare] NVIDIA circuit breaker OPEN for "${topic}":`, message);
+        log.warn({ topic, message }, "NVIDIA circuit breaker OPEN");
         await stage(sessionId, "fallback",
           `NVIDIA API circuit breaker is OPEN - using template analysis`, 30);
         return;
       }
 
-      console.error(`[Compare] NVIDIA orchestrator failed for "${topic}":`, message);
+      log.error({ topic, message }, "NVIDIA orchestrator failed");
       await stage(sessionId, "fallback",
         `NVIDIA pipeline unavailable - using template analysis`, 30);
     };
 
     try {
       const { result, cost } = await orchestrator.compareNews(topic, allScraped, sessionId);
-      console.log(`[Compare] NVIDIA multi-agent complete for "${topic}" - cost: $${cost.toFixed(5)}`);
+      setSessionResult(sessionId, result);
+      log.info({ topic, cost: Number(cost.toFixed(5)) }, "NVIDIA multi-agent complete");
       return;
     } catch (orchErr) {
       await useFallback(orchErr);
@@ -301,13 +306,15 @@ export async function runComparison(
 
     // Cache the result
     await setCachedComparison(topic, result);
-    console.log(`[Compare] Cached fallback result for "${topic}" (hash: ${hashTopic(topic)})`);
+    log.info({ topic, hash: hashTopic(topic) }, "Cached fallback result");
 
+    setSessionResult(sessionId, result);
     await stageDone(sessionId, "verifying", "Analysis generated", 90);
     await stageDone(sessionId, "orchestrator", "Analysis complete!", 100, {
       result,
     });
   } catch (fallbackErr) {
+    log.error({ err: fallbackErr, topic }, "Both NVIDIA pipeline and fallback analysis failed");
     await stageFailed(
       sessionId,
       "orchestrator",

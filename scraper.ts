@@ -8,6 +8,9 @@ import {
   setCachedAllArticles,
   invalidateArticleCaches,
 } from "./server/services/cache.js";
+import { childLogger } from "./server/services/logger.js";
+
+const log = childLogger({ module: "scraper" });
 
 export interface ScrapedArticle {
   title: string;
@@ -105,7 +108,7 @@ export async function fetchExpress(): Promise<ScrapedArticle[]> {
 
     return articles;
   } catch (err: any) {
-    console.error("[Scraper Error] Failed to scrape Trinidad Express:", err.message);
+    log.warn({ err: err.message, source: "Trinidad Express" }, "Failed to scrape source");
     return [];
   }
 }
@@ -161,7 +164,7 @@ export async function fetchGuardian(): Promise<ScrapedArticle[]> {
 
     return articles;
   } catch (err: any) {
-    console.error("[Scraper Error] Failed to scrape Trinidad Guardian:", err.message);
+    log.warn({ err: err.message, source: "Trinidad Guardian" }, "Failed to scrape source");
     return [];
   }
 }
@@ -211,7 +214,7 @@ export async function fetchNewsday(): Promise<ScrapedArticle[]> {
 
     return articles;
   } catch (err: any) {
-    console.error("[Scraper Error] Failed to scrape Newsday Archive:", err.message);
+    log.warn({ err: err.message, source: "Newsday" }, "Failed to scrape source");
     return [];
   }
 }
@@ -286,12 +289,12 @@ export async function fetchAllNewsCached(force = false): Promise<ScrapedArticle[
   if (!force) {
     const cached = await getCachedAllArticles();
     if (cached) {
-      console.log("[Scraper] Cache HIT for aggregated articles");
+      log.debug("Cache HIT for aggregated articles");
       return cached as ScrapedArticle[];
     }
   }
 
-  console.log("[Scraper] Cache MISS - scraping live…");
+  log.info("Cache MISS - scraping live");
   const fresh = await fetchAllNews();
 
   // Seed the aggregated cache

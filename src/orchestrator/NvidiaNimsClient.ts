@@ -15,6 +15,7 @@
 import axios, { AxiosInstance } from "axios";
 import { checkRateLimit } from "../../server/services/cache.js";
 import { CircuitBreaker, CircuitBreakerOpenError } from "./CircuitBreaker.js";
+import { childLogger } from "../../server/services/logger.js";
 
 //
 // Types
@@ -54,6 +55,7 @@ export class NvidiaNimsClient {
   private costs: NvidiaNimCost[] = [];
   private endpoint: string;
   private circuitBreaker: CircuitBreaker;
+  private log = childLogger({ module: "nvidia-nims" });
 
   constructor(
     apiKey: string,
@@ -101,7 +103,7 @@ export class NvidiaNimsClient {
 
   resetCircuit(): void {
     this.circuitBreaker.reset();
-    console.log("[NvidiaNimsClient] Circuit breaker manually reset");
+    this.log.info("Circuit breaker manually reset");
   }
 
   //
@@ -160,7 +162,7 @@ export class NvidiaNimsClient {
     const { allowed, resetIn } = await checkRateLimit("rate:nim:minute", 60, 60);
     if (!allowed) {
       const wait = Math.min(resetIn, 30) * 1000;
-      console.warn(`[NvidiaNims:${requestId}] Rate limited - waiting ${wait}ms`);
+      this.log.warn({ requestId, waitMs: wait }, "Rate limited, waiting");
       await new Promise((r) => setTimeout(r, wait));
     }
   }
@@ -194,7 +196,7 @@ export class NvidiaNimsClient {
         }
 
         if (choice.finish_reason === "length") {
-          console.warn(`[NvidiaNims:${requestId}] Response truncated (finish_reason=length)`);
+          this.log.warn({ requestId }, "Response truncated (finish_reason=length)");
         }
 
         const usage = response.data.usage;
@@ -207,14 +209,14 @@ export class NvidiaNimsClient {
           model, promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0,
         };
 
-        console.log(`[NvidiaNims:${requestId}] ${model} - OK (attempt ${attempt}, tokens: ${usage?.total_tokens ?? "?"})`);
+        this.log.info({ requestId, model, attempt, tokens: usage?.total_tokens ?? "?" }, "NVIDIA request OK");
         return { data: parsed, tokens: usage?.total_tokens ?? 0, cost };
       } catch (err) {
         lastError = err as Error;
         const retryable = this.isRetryable(err);
         if (retryable && attempt <= maxRetries) {
           const delay = 1000 * Math.pow(2, attempt - 1) + Math.random() * 500;
-          console.warn(`[NvidiaNims:${requestId}] Attempt ${attempt} failed - retry in ${Math.round(delay)}ms: ${(err as Error).message}`);
+          this.log.warn({ requestId, attempt, delayMs: Math.round(delay), err: (err as Error).message }, "NVIDIA request failed, retrying");
           await new Promise((r) => setTimeout(r, delay));
         } else if (!retryable) {
           throw err;

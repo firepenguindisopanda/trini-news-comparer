@@ -10,6 +10,9 @@
  */
 
 import { Redis } from "@upstash/redis";
+import { childLogger } from "./logger.js";
+
+const log = childLogger({ module: "cache" });
 
 //
 // Singleton client
@@ -24,18 +27,16 @@ function getClient(): Redis | null {
   const token = process.env.UPSTASH_REDIS_TOKEN;
 
   if (!url || !token) {
-    console.warn(
-      "[Cache] UPSTASH_REDIS_URL or UPSTASH_REDIS_TOKEN not set - caching disabled"
-    );
+    log.warn("UPSTASH_REDIS_URL or UPSTASH_REDIS_TOKEN not set - caching disabled");
     return null;
   }
 
   try {
     client = new Redis({ url, token });
-    console.log("[Cache] Upstash Redis client initialised");
+    log.info("Upstash Redis client initialised");
     return client;
   } catch (err) {
-    console.error("[Cache] Failed to initialise Redis client:", err);
+    log.error({ err }, "Failed to initialise Redis client");
     return null;
   }
 }
@@ -72,7 +73,7 @@ async function cacheGet<T>(key: string): Promise<T | null> {
     if (raw === null || raw === undefined) return null;
     return raw;
   } catch (err) {
-    console.warn(`[Cache] GET error for "${key}":`, err);
+    log.warn({ err, key }, "Cache GET error");
     return null;
   }
 }
@@ -90,7 +91,7 @@ async function cacheSet(
     // Pass the value directly, not JSON.stringify'd.
     await r.setex(key, ttlSeconds, value);
   } catch (err) {
-    console.warn(`[Cache] SET error for "${key}":`, err);
+    log.warn({ err, key }, "Cache SET error");
   }
 }
 
@@ -101,7 +102,7 @@ async function cacheDel(key: string): Promise<void> {
   try {
     await r.del(key);
   } catch (err) {
-    console.warn(`[Cache] DEL error for "${key}":`, err);
+    log.warn({ err, key }, "Cache DEL error");
   }
 }
 
@@ -264,7 +265,7 @@ export async function checkRateLimit(
       resetIn: ttl,
     };
   } catch (err) {
-    console.warn(`[Cache] Rate-limit error for "${key}":`, err);
+    log.warn({ err, key }, "Rate-limit error");
     return { allowed: true, remaining: 1, resetIn: 0 };
   }
 }

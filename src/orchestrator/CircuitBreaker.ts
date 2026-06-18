@@ -16,6 +16,8 @@
  *   const result = await cb.call(() => api.fetch());
  */
 
+import { childLogger } from "../../server/services/logger.js";
+
 //
 // Error type
 //
@@ -61,6 +63,7 @@ export class CircuitBreaker {
   private successCount = 0;
   private lastFailureTime = 0;
   private halfOpenInFlight = 0;
+  private log;
 
   public readonly name: string;
   public readonly failureThreshold: number;
@@ -76,6 +79,7 @@ export class CircuitBreaker {
 
   constructor(name: string, opts?: CircuitBreakerOptions) {
     this.name = name;
+    this.log = childLogger({ module: "circuit-breaker", name });
     this.failureThreshold = opts?.failureThreshold ?? 3;
     this.successThreshold = opts?.successThreshold ?? 2;
     this.timeout = opts?.timeout ?? 30_000;
@@ -108,7 +112,7 @@ export class CircuitBreaker {
         );
       }
       // Timeout expired to half-open
-      console.log(`[CircuitBreaker:${this.name}] Timeout expired (${this.timeout}ms), transitioning to HALF_OPEN`);
+      this.log.info({ timeout: this.timeout }, "Timeout expired, transitioning to HALF_OPEN");
       this.state = CircuitState.HALF_OPEN;
       this.successCount = 0;
       this.totalTimeouts++;
@@ -148,7 +152,7 @@ export class CircuitBreaker {
     if (this.state === CircuitState.HALF_OPEN) {
       this.successCount++;
       if (this.successCount >= this.successThreshold) {
-        console.log(`[CircuitBreaker:${this.name}] ${this.successCount} consecutive successes in HALF_OPEN to CLOSED`);
+        this.log.info({ successes: this.successCount }, "Consecutive successes in HALF_OPEN, transitioning to CLOSED");
         this.state = CircuitState.CLOSED;
         this.failureCount = 0;
         this.successCount = 0;
@@ -165,9 +169,7 @@ export class CircuitBreaker {
     this.lastFailureTime = Date.now();
 
     if (this.failureCount >= this.failureThreshold) {
-      console.warn(
-        `[CircuitBreaker:${this.name}] ${this.failureCount} consecutive failures - OPEN circuit for ${this.timeout}ms`,
-      );
+      this.log.warn({ failures: this.failureCount, timeoutMs: this.timeout }, "Consecutive failures - opening circuit");
       this.state = CircuitState.OPEN;
       this.successCount = 0;
     }

@@ -22,34 +22,16 @@ import {
   setCachedAllArticles,
   TTL,
 } from "./server/services/cache.js";
+import { childLogger } from "./server/services/logger.js";
+
+const log = childLogger({ module: "background-worker" });
 
 //
 // Config
 //
 
 const SCRAPE_INTERVAL_MS =
-  (parseInt(process.env.WORKER_SCRAPE_INTERVAL_MINUTES || "60", 10)) * 60_000;
-
-//
-// Helpers
-//
-
-function log(level: "info" | "warn" | "error", message: string, meta?: Record<string, unknown>) {
-  const entry = {
-    timestamp: new Date().toISOString(),
-    level,
-    service: "background-worker",
-    message,
-    ...meta,
-  };
-  if (level === "error") {
-    console.error(JSON.stringify(entry));
-  } else if (level === "warn") {
-    console.warn(JSON.stringify(entry));
-  } else {
-    console.log(JSON.stringify(entry));
-  }
-}
+  (parseInt(process.env.WORKER_SCRAPE_INTERVAL_MINUTES || "5", 10)) * 60_000;
 
 //
 // Core scrape to cache cycle
@@ -57,7 +39,7 @@ function log(level: "info" | "warn" | "error", message: string, meta?: Record<st
 
 async function scrapeAndCache(): Promise<void> {
   const startedAt = Date.now();
-  log("info", "Scrape cycle starting");
+  log.info("Scrape cycle starting");
 
   try {
     // 1. Run the full scraper
@@ -81,7 +63,7 @@ async function scrapeAndCache(): Promise<void> {
 
     // 4. Stats
     const sourceCount = bySource.size;
-    log("info", "Scrape cycle complete", {
+    log.info({
       articles: articles.length,
       sources: sourceCount,
       elapsedMs: elapsed,
@@ -91,10 +73,7 @@ async function scrapeAndCache(): Promise<void> {
       ),
     });
   } catch (err) {
-    log("error", "Scrape cycle failed", {
-      error: (err as Error).message,
-      elapsedMs: Date.now() - startedAt,
-    });
+    log.error({ err: (err as Error).message, elapsedMs: Date.now() - startedAt }, "Scrape cycle failed");
   }
 }
 
@@ -103,13 +82,13 @@ async function scrapeAndCache(): Promise<void> {
 //
 
 function printHealth(): void {
-  log("info", "Worker health report", {
+  log.info({
     uptimeSeconds: Math.floor(process.uptime()),
     memoryMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
     nextScrapeInMs: SCRAPE_INTERVAL_MS,
     nodeVersion: process.version,
     platform: process.platform,
-  });
+  }, "Worker health report");
 }
 
 //
@@ -121,10 +100,10 @@ let shuttingDown = false;
 function shutdown(signal: string): void {
   if (shuttingDown) return;
   shuttingDown = true;
-  log("info", `Received ${signal} - shutting down gracefully`);
+  log.info({ signal }, "Received shutdown signal");
   // Allow current scrape to finish (up to 30 s)
   setTimeout(() => {
-    log("info", "Shutdown complete");
+    log.info("Shutdown complete");
     process.exit(0);
   }, 30_000).unref();
 }
@@ -137,10 +116,10 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 //
 
 async function main(): Promise<void> {
-  log("info", "Worker starting", {
+  log.info({
     scrapeIntervalMs: SCRAPE_INTERVAL_MS,
     redisConfigured: Boolean(process.env.UPSTASH_REDIS_URL && process.env.UPSTASH_REDIS_TOKEN),
-  });
+  }, "Worker starting");
 
   // Run once immediately on startup so the cache is seeded ASAP
   await scrapeAndCache();
@@ -163,6 +142,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  log("error", "Fatal worker error", { error: (err as Error).message });
+  log.error({ err: (err as Error).message }, "Fatal worker error");
   process.exit(1);
 });

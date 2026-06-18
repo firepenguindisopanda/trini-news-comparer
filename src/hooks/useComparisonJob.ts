@@ -138,21 +138,22 @@ export function useComparisonJob(
       unbindFns.push(() => channel.unbind(eventName));
     }
 
-    // Completion event --
-    const onCompleted = (data: { result?: NewsComparisonResult; error?: string }) => {
-      if (data.error) {
+    // Completion event -- result is nested inside metadata by the server
+    const onCompleted = (data: ProgressData) => {
+      const md = data.metadata ?? {};
+      if (data.status === "failed") {
         setState(prev => ({
           ...prev,
           status: "failed",
-          error: data.error!,
+          error: data.message,
           progress: 100,
-          message: `Failed: ${data.error}`,
+          message: `Failed: ${data.message}`,
         }));
-      } else if (data.result) {
+      } else if (md.result) {
         setState(prev => ({
           ...prev,
           status: "completed",
-          result: data.result!,
+          result: md.result as NewsComparisonResult,
           progress: 100,
           message: "Analysis complete!",
         }));

@@ -4,7 +4,13 @@ import path from 'path';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
+  // VITE_BASE_URL is set during Docker build for subpath deployment.
+  // e.g. VITE_BASE_URL=/news-comparer/ means the app lives at
+  // https://domain.com/news-comparer/ behind a reverse proxy.
+  const base = process.env.VITE_BASE_URL || "/";
+
   return {
+    base,
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
