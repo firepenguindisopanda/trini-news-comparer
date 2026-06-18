@@ -112,6 +112,34 @@ export default function AboutDrawer({ open, onClose }: AboutDrawerProps) {
                 </div>
               </section>
 
+              {/* Work in Progress ==== */}
+              <section className="mb-6">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3 h-3" />
+                  Work in Progress
+                </h3>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2.5">
+                  <p className="text-xs text-blue-900 leading-relaxed">
+                    This tool is a <strong>work in progress</strong> — a personal exercise in
+                    building, experimenting, and learning. The long-term goal is to use it as a
+                    practice ground for <strong>identifying and improving critical thinking skills</strong>:
+                    recognising media bias, spotting framing choices, noticing what gets emphasised
+                    vs. omitted, and becoming a more discerning news consumer.
+                  </p>
+                  <p className="text-xs text-blue-900 leading-relaxed">
+                    Much like calibration exercises in marksmanship or pattern recognition in
+                    chess, the act of routinely comparing how different outlets cover the same
+                    story trains the mind to <strong>detect slant, question sources, and resist
+                    filter bubbles</strong>. This project aims to make that practice more
+                    visible and structured.
+                  </p>
+                  <p className="text-xs text-blue-900 leading-relaxed">
+                    The pipeline, UI, accuracy, and methodology will continue to evolve as
+                    this exercise develops.
+                  </p>
+                </div>
+              </section>
+
               {/* What This Is NOT ==== */}
               <section className="mb-6">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5">
