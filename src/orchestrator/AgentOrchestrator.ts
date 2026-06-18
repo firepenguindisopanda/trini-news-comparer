@@ -102,12 +102,12 @@ export class AgentOrchestrator {
     this.nvidia = new NvidiaNimsClient(config.nvidiaApiKey);
     this.cfg = {
       nvidiaApiKey: config.nvidiaApiKey,
-      expanderModel: config.expanderModel ?? "meta/llama-3.1-70b-instruct",
-      matcherModel: config.matcherModel ?? "meta/llama-3.1-70b-instruct",
+      expanderModel: config.expanderModel ?? "meta/llama-3.1-8b-instruct",
+      matcherModel: config.matcherModel ?? "meta/llama-3.1-8b-instruct",
       analystModel: config.analystModel ?? "meta/llama-3.1-8b-instruct",
-      synthesizerModel: config.synthesizerModel ?? "meta/llama-3.1-70b-instruct",
-      fallbackSynthesizerModel: config.fallbackSynthesizerModel ?? "nvidia/nemotron-4-340b-instruct",
-      verifierModel: config.verifierModel ?? "meta/llama-3.1-70b-instruct",
+      synthesizerModel: config.synthesizerModel ?? "meta/llama-3.1-8b-instruct",
+      fallbackSynthesizerModel: config.fallbackSynthesizerModel ?? "meta/llama-3.1-70b-instruct",
+      verifierModel: config.verifierModel ?? "meta/llama-3.1-8b-instruct",
     };
   }
 
@@ -191,7 +191,8 @@ export class AgentOrchestrator {
       const { data } = await this.nvidia.chat<ArticleMatcherOutput>({
         model: this.cfg.matcherModel,
         systemPrompt: ARTICLE_MATCHER_PROMPT,
-        userContent: JSON.stringify({ expandedTopic: expanded, articles: articles.slice(0, 100) }),
+        // Limit to 30 articles — the 70B model is too slow with more
+        userContent: JSON.stringify({ expandedTopic: expanded, articles: articles.slice(0, 30) }),
         requestId: `match-${sessionId.slice(0, 8)}`,
       });
 
@@ -326,12 +327,13 @@ export class AgentOrchestrator {
         userContent: JSON.stringify(input),
         requestId: `synthesize-${sessionId.slice(0, 8)}`,
       });
+      const syn = data.synthesis || data as any;
       return {
         synthesis: {
-          overallAnalysis: data.synthesis?.overallAnalysis ||
+          overallAnalysis: syn.overallAnalysis ||
             `Analysis of "${input.topic}" across ${input.sourceReports.length} source${input.sourceReports.length !== 1 ? 's' : ''}. ` +
             input.sourceReports.map(s => `${s.sourceName}: ${s.toneAngle}.`).join(" "),
-          keyTakeaway: data.synthesis?.keyTakeaway ||
+          keyTakeaway: syn.keyTakeaway ||
             `Each outlet framed "${input.topic}" with different editorial priorities. Compare the emphasized vs omitted details above.`,
         },
         detectedBiasPatterns: Array.isArray(data.detectedBiasPatterns) ? data.detectedBiasPatterns : [],
@@ -443,7 +445,11 @@ export class AgentOrchestrator {
       `Analyzing ${bySource.size} sources in parallel…`, 45);
 
     const analystPromises = [...bySource.entries()].map(([sourceName, articles]) =>
-      this.analyzeSource({ sourceName, matchedArticles: articles, allArticles: scrapedArticles, topic }),
+      this.analyzeSource({ sourceName, matchedArticles: articles, allArticles: scrapedArticles, topic })
+        .catch((err) => {
+          log.warn({ sourceName, err: (err as Error).message }, "SourceAnalyst failed");
+          return null;
+        }),
     );
     const analystResults = await Promise.all(analystPromises);
     const validReports: NewsSourceReport[] = analystResults.filter(

@@ -69,7 +69,12 @@ export async function publish(
   }
 
   try {
-    await p.trigger(channel, event, data);
+    await Promise.race([
+      p.trigger(channel, event, data),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Pusher trigger timed out after 5s")), 5000),
+      ),
+    ]);
     return true;
   } catch (err) {
     log.warn({ err, channel, event }, "Failed to publish Pusher event");

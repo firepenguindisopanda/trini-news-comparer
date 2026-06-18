@@ -33,11 +33,11 @@ const orchestrator: AgentOrchestrator | undefined = nvidiaApiKey
 // Log circuit breaker + model config on startup
 if (orchestrator) {
     log.info({
-      expander: "meta/llama-3.1-70b-instruct",
-      matcher: "meta/llama-3.1-70b-instruct",
+      expander: "meta/llama-3.1-8b-instruct",
+      matcher: "meta/llama-3.1-8b-instruct",
       analyst: "meta/llama-3.1-8b-instruct (parallel)",
-      synthesizer: "meta/llama-3.1-70b-instruct (to nvidia/nemotron-4-340b-instruct fallback)",
-      verifier: "meta/llama-3.1-70b-instruct",
+      synthesizer: "meta/llama-3.1-8b-instruct (→ 70b fallback on low confidence)",
+      verifier: "meta/llama-3.1-8b-instruct",
     }, "NVIDIA orchestrator initialised");
 }
 

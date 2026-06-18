@@ -20,14 +20,43 @@ User → Express API (202 Accepted)
          └─ Cache miss → Background worker starts
                           │
                           ├─ AgentOrchestrator (NVIDIA NIMs, primary)
-                          │   ├─ 1. TopicExpander      (llama-3.1-70b)
-                          │   ├─ 2. ArticleMatcher     (llama-3.1-70b)
-                          │   ├─ 3. SourceAnalyst      (llama-3.1-8b, parallel per source)
-                          │   ├─ 4. CrossSourceSynthesizer (llama-3.1-70b → nemotron-4-340b fallback)
-                          │   └─ 5. Verifier           (llama-3.1-70b)
+                          │   ├─ 1. TopicExpander      (llama-3.1-8b, 30 articles max)
+                          │   ├─ 2. ArticleMatcher     (llama-3.1-8b)
+                          │   ├─ 3. SourceAnalyst      (llama-3.1-8b, parallel per source, resilient)
+                          │   ├─ 4. CrossSourceSynthesizer (llama-3.1-8b)
+                          │   └─ 5. Verifier           (llama-3.1-8b)
                           │
                           └─ Programmatic template fallback (no LLM call)
 ```
+
+### LLM Model Tuning for Performance
+
+The pipeline defaults to **8B-parameter models** for all five agents. This keeps total response time under ~40 seconds on the NVIDIA NIMs API. If you need higher-quality analysis and can tolerate longer wait times, you can switch individual agents back to larger models via environment variables:
+
+| Env Variable | Default | Larger Option | Trade-off |
+|---|---|---|---|
+| `NVIDIA_EXPANDER_MODEL` | `meta/llama-3.1-8b-instruct` | `meta/llama-3.1-70b-instruct` | 70B is slower (~60s) but may produce more nuanced topic expansion |
+| `NVIDIA_MATCHER_MODEL` | `meta/llama-3.1-8b-instruct` | `meta/llama-3.1-70b-instruct` | 70B with 100+ articles can cause 120s+ timeouts; 8B handles 30 articles in ~10s |
+| `NVIDIA_ANALYST_MODEL` | `meta/llama-3.1-8b-instruct` | `meta/llama-3.1-70b-instruct` | 8B runs parallel per source (~10s each); 70B may timeout on sources with many articles |
+| `NVIDIA_SYNTHESIZER_MODEL` | `meta/llama-3.1-8b-instruct` | `meta/llama-3.1-70b-instruct` | 8B produces concise (~200 token) analysis quickly; 70B generates deeper 3-5 paragraph comparisons |
+| `NVIDIA_VERIFIER_MODEL` | `meta/llama-3.1-8b-instruct` | `meta/llama-3.1-70b-instruct` | 8B gives adequate verification for most cases; 70B catches more subtle hallucination |
+
+**To restore the original 70B pipeline with 100 articles**, set:
+```env
+NVIDIA_MATCHER_MODEL=meta/llama-3.1-70b-instruct
+NVIDIA_SYNTHESIZER_MODEL=meta/llama-3.1-70b-instruct
+NVIDIA_VERIFIER_MODEL=meta/llama-3.1-70b-instruct
+NVIDIA_EXPANDER_MODEL=meta/llama-3.1-70b-instruct
+```
+
+You must also increase the HTTP timeout in `src/orchestrator/NvidiaNimsClient.ts` (`timeout: 120_000` → `300_000`) and raise `maxTokens` (line 175, `2048` → `4096`). Expect 2–5 minute total response times.
+
+**To send more than 30 articles to the matcher**, edit the slice in `src/orchestrator/AgentOrchestrator.ts`:
+```ts
+// Line 196: change 30 to 100 or higher
+articles: articles.slice(0, 100)
+```
+Only do this with the 70B matcher model — the 8B model may produce degraded relevance scores with large batches.
 
 ### Key Components
 

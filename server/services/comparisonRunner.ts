@@ -121,6 +121,8 @@ export async function runComparison(
   const cached = await getCachedComparison(topic);
   if (cached) {
     const label = cached.stale ? "stale" : "fresh";
+    log.info({ topic, label }, "Cache hit — returning cached result");
+    setSessionResult(sessionId, cached.data);
     await stageDone(sessionId, "scraper", `Found ${label} cached result`, 20);
     await stageDone(sessionId, "orchestrator", "Returning cached result", 100, {
       result: cached.data,

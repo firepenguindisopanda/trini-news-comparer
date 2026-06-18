@@ -217,7 +217,7 @@ export default function App() {
 
       {/* Main Header Container */}
       <header className="bg-white border-b border-slate-200 py-6 shadow-xs sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-2 sm:px-3 lg:px-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center space-x-3">
             <div className="bg-red-50 p-2.5 rounded-xl border border-red-100 flex items-center justify-center">
               <Scale className="w-6 h-6 text-red-600" />
@@ -250,7 +250,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-2 sm:px-3 lg:px-4 mt-8">
+      <main className="max-w-7xl mx-auto px-1 mt-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           
           {/* Left Column - Controls, Preset Choices, Search History */}
