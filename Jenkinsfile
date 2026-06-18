@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'node:22-alpine'
-            args '-v /var/run/docker.sock:/var/run/docker.sock -v /home/swepi/Desktop:/home/swepi/Desktop'
-        }
-    }
+    agent any
 
     environment {
         PRODUCTION_DIR = "/home/swepi/Desktop/trinidad-news-comparer"
@@ -13,26 +8,25 @@ pipeline {
     stages {
         stage('Setup') {
             steps {
-                sh 'apk add --no-cache docker-cli rsync'
-                sh 'npm ci'
+                sh 'docker run --rm -v "$PWD:/app" -w /app node:22-alpine npm ci'
             }
         }
 
         stage('Lint') {
             steps {
-                sh 'npm run lint 2>/dev/null || echo "No linter configured"'
+                sh 'docker run --rm -v "$PWD:/app" -w /app node:22-alpine npm run lint 2>/dev/null || echo "No linter configured"'
             }
         }
 
         stage('Deploy') {
             steps {
                 sh """
-                    rsync -av --delete \
+                    sudo rsync -av --delete --chown=swepi:swepi \
                         --exclude='.env' \
                         --exclude='node_modules/' \
                         --exclude='.git/' \
-                        ./ \${PRODUCTION_DIR}/
-                    cd \${PRODUCTION_DIR} && docker compose up -d --build
+                        ./ ${PRODUCTION_DIR}/
+                    cd ${PRODUCTION_DIR} && docker compose up -d --build
                 """
             }
         }
