@@ -230,6 +230,96 @@ export async function setCachedComparison(
 }
 
 //
+// Brief cache keys
+//
+
+const BRIEF_KEY = "brief:daily:latest";
+
+/** Cache-fetch the daily brief. */
+export async function getCachedBrief<T = unknown>(): Promise<T | null> {
+  return cacheGet<T>(BRIEF_KEY);
+}
+
+/** Store the daily brief in cache (24h TTL). */
+export async function setCachedBrief(
+  data: unknown,
+): Promise<void> {
+  return cacheSet(BRIEF_KEY, data, TTL.COMPARISON);
+}
+
+//
+// Financial brief cache keys
+//
+
+const FINANCIAL_BRIEF_KEY = "brief:financial:latest";
+
+/** Cache-fetch the financial brief. */
+export async function getCachedFinancialBrief<T = unknown>(): Promise<T | null> {
+  return cacheGet<T>(FINANCIAL_BRIEF_KEY);
+}
+
+/** Store the financial brief in cache (24h TTL). */
+export async function setCachedFinancialBrief(data: unknown): Promise<void> {
+  return cacheSet(FINANCIAL_BRIEF_KEY, data, TTL.COMPARISON);
+}
+
+//
+// Per-agent checkpoint keys
+//
+
+function checkpointKey(topicHash: string, stageName: string): string {
+  return `cmp:${topicHash}:stage:${stageName}`;
+}
+
+/** Compute a quick content hash for the article set (for invalidation). */
+function articleSetHash(articles: Array<{ link: string }>): string {
+  let h = 0;
+  for (const a of articles) {
+    for (let i = 0; i < a.link.length; i++) {
+      h = (h << 5) - h + a.link.charCodeAt(i);
+      h |= 0;
+    }
+  }
+  return Math.abs(h).toString(36);
+}
+
+/** Cache-fetch a per-agent checkpoint. */
+export async function getCheckpoint<T = unknown>(
+  topic: string,
+  stageName: string,
+): Promise<{ data: T; articleSetHash?: string } | null> {
+  const key = checkpointKey(hashTopic(topic), stageName);
+  const raw = await cacheGet<{ data: T; cachedAt: string; articleSetHash?: string }>(key);
+  if (!raw) return null;
+  return { data: raw.data, articleSetHash: raw.articleSetHash };
+}
+
+/** Store a per-agent checkpoint (24h TTL). */
+export async function setCheckpoint(
+  topic: string,
+  stageName: string,
+  data: unknown,
+  articles: Array<{ link: string }> = [],
+): Promise<void> {
+  const key = checkpointKey(hashTopic(topic), stageName);
+  const payload = {
+    data,
+    cachedAt: new Date().toISOString(),
+    articleSetHash: articles.length > 0 ? articleSetHash(articles) : undefined,
+  };
+  return cacheSet(key, payload, TTL.COMPARISON);
+}
+
+/** Remove a checkpoint (for invalidation). */
+export async function removeCheckpoint(
+  topic: string,
+  stageName: string,
+): Promise<void> {
+  const key = checkpointKey(hashTopic(topic), stageName);
+  return cacheDel(key);
+}
+
+//
 // Rate-limit helpers
 //
 

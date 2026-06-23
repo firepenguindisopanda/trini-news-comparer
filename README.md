@@ -13,11 +13,11 @@ This tool is not a replacement for reading articles. It is a lens to help you se
 ## Architecture
 
 ```
-User → Express API (202 Accepted)
+User -> Express API (202 Accepted)
          │
-         ├─ Cache hit? → Return cached result immediately
+         ├─ Cache hit? -> Return cached result immediately
          │
-         └─ Cache miss → Background worker starts
+         └─ Cache miss -> Background worker starts
                           │
                           ├─ AgentOrchestrator (NVIDIA NIMs, primary)
                           │   ├─ 1. TopicExpander      (llama-3.1-8b, 30 articles max)
@@ -49,20 +49,20 @@ NVIDIA_VERIFIER_MODEL=meta/llama-3.1-70b-instruct
 NVIDIA_EXPANDER_MODEL=meta/llama-3.1-70b-instruct
 ```
 
-You must also increase the HTTP timeout in `src/orchestrator/NvidiaNimsClient.ts` (`timeout: 120_000` → `300_000`) and raise `maxTokens` (line 175, `2048` → `4096`). Expect 2–5 minute total response times.
+You must also increase the HTTP timeout in `src/orchestrator/NvidiaNimsClient.ts` (`timeout: 120_000` -> `300_000`) and raise `maxTokens` (line 175, `2048` -> `4096`). Expect 2–5 minute total response times.
 
 **To send more than 30 articles to the matcher**, edit the slice in `src/orchestrator/AgentOrchestrator.ts`:
 ```ts
 // Line 196: change 30 to 100 or higher
 articles: articles.slice(0, 100)
 ```
-Only do this with the 70B matcher model — the 8B model may produce degraded relevance scores with large batches.
+Only do this with the 70B matcher model - the 8B model may produce degraded relevance scores with large batches.
 
 ### Key Components
 
 | Component | Role |
 |-----------|------|
-| **5-Agent Pipeline** | Topic expansion → article matching → per-source analysis → cross-source synthesis → verification |
+| **5-Agent Pipeline** | Topic expansion -> article matching -> per-source analysis -> cross-source synthesis -> verification |
 | **Circuit Breaker** | After 3 consecutive failures the NVIDIA calls fail-fast for 30s, protecting downstream costs |
 | **Redis Cache** | Upstash Redis for scraped articles (5min TTL) and comparison results (24h TTL), plus rate limiting |
 | **Pusher Channels** | Real-time WebSocket progress events to the frontend for each agent stage |
@@ -143,7 +143,7 @@ npm run dev:worker
 
 ### 4. Verify it works
 
-- Open the browser → you should see the Trinidad News Comparer UI
+- Open the browser -> you should see the Trinidad News Comparer UI
 - Click a preset topic or type a custom search
 - The 202 Accepted response starts the 5-agent pipeline
 - Progress events stream via Pusher (look for progress bar in the UI)

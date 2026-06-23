@@ -1,7 +1,7 @@
 /**
  * Structured JSON logger (Pino)
  *
- * Outputs JSON logs to stdout/stderr — ideal for Docker log aggregation.
+ * Outputs JSON logs to stdout/stderr - ideal for Docker log aggregation.
  * In development, uses pino-pretty for human-readable output.
  */
 

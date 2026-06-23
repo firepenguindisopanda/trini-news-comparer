@@ -1,27 +1,19 @@
 version: "3.9"
 
-# ============================================================================
 # Shared network so containers can reach each other by name
-# ============================================================================
 networks:
   news-net:
     driver: bridge
 
-# ============================================================================
 # Volumes
-# ============================================================================
 volumes:
   # Used by the worker to persist crawl state (optional)
   news_cache:
     driver: local
 
-# ============================================================================
 # Services
-# ============================================================================
 services:
-  # ==========================================================================
-  # Main web service — serves the React SPA + API endpoints
-  # ==========================================================================
+  # Main web service - serves the React SPA + API endpoints
   app:
     build:
       context: .
@@ -34,7 +26,7 @@ services:
     container_name: trinidad-news-comparer
     restart: unless-stopped
     ports:
-      # Bind to 127.0.0.1 only — Nginx on the Pi host handles public traffic
+      # Bind to 127.0.0.1 only - Nginx on the Pi host handles public traffic
       - "127.0.0.1:3000:3000"
     environment:
       - NODE_ENV=production
@@ -64,11 +56,9 @@ services:
     networks:
       - news-net
 
-  # ==========================================================================
-  # Background worker — keeps the article cache warm by scraping sources
+  # Background worker - keeps the article cache warm by scraping sources
   # on a timer. Without it, the app still works (cache misses trigger live
   # scrapes), but responses are slower.
-  # ==========================================================================
   worker:
     build:
       context: .

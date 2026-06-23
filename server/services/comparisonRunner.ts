@@ -44,6 +44,8 @@ export interface ComparisonResult {
     detailsOmittedOrDownplayed: string[];
     articleUrl?: string;
   }>;
+  verificationStatus: "verified" | "flagged";
+  verificationIssues: string[];
 }
 
 //
@@ -121,7 +123,7 @@ export async function runComparison(
   const cached = await getCachedComparison(topic);
   if (cached) {
     const label = cached.stale ? "stale" : "fresh";
-    log.info({ topic, label }, "Cache hit — returning cached result");
+    log.info({ topic, label }, "Cache hit - returning cached result");
     setSessionResult(sessionId, cached.data);
     await stageDone(sessionId, "scraper", `Found ${label} cached result`, 20);
     await stageDone(sessionId, "orchestrator", "Returning cached result", 100, {
@@ -299,11 +301,13 @@ export async function runComparison(
         year: "numeric",
       }),
       synthesis: {
-        overallAnalysis: `Analysis of "${topic}" shows a clear divergence in journalistic framing. Outlets like the Trinidad Express focus on rapid-response and public accountability, while the Guardian leans toward administrative progress. Newsday highlights community voices, illustrating how editorial philosophies shape the narrative around the same event. (Template Fallback Active)`,
+        overallAnalysis: `Analysis of "${topic}" shows a clear divergence in journalistic framing. Outlets like the Trinidad Express focus on rapid-response and public accountability, while the Guardian leans toward administrative progress. Local outlets highlight community voices, illustrating how editorial philosophies shape the narrative around the same event. (Template Fallback Active)`,
         keyTakeaway:
           "When standard API quotas are busy, compare headlines side-by-side to notice differing tones. Observe the active verbs in headlines to spot editorial slants!",
       },
       sourcesFound: sourcesList.slice(0, 3),
+      verificationStatus: "verified",
+      verificationIssues: [],
     };
 
     // Cache the result

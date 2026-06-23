@@ -11,6 +11,8 @@ import { runComparison } from "./server/services/comparisonRunner.js";
 import { AgentOrchestrator } from "./src/orchestrator/AgentOrchestrator.js";
 import logger, { childLogger } from "./server/services/logger.js";
 import { getSession, setSession, setSessionStatus } from "./server/services/sessions.js";
+import { checkInput } from "./server/services/inputGuardrail.js";
+import { getOrGenerateBrief, generateBrief } from "./server/services/briefComposer.js";
 
 // Load environment variables
 dotenv.config();
@@ -36,10 +38,33 @@ if (orchestrator) {
       expander: "meta/llama-3.1-8b-instruct",
       matcher: "meta/llama-3.1-8b-instruct",
       analyst: "meta/llama-3.1-8b-instruct (parallel)",
-      synthesizer: "meta/llama-3.1-8b-instruct (→ 70b fallback on low confidence)",
+      synthesizer: "meta/llama-3.1-8b-instruct (-> 70b fallback on low confidence)",
       verifier: "meta/llama-3.1-8b-instruct",
     }, "NVIDIA orchestrator initialised");
 }
+
+// Input guardrail classifier (layer 3: NIM topic check)
+const inputClassifier: ((prompt: string) => Promise<string>) | undefined = nvidiaApiKey
+  ? async (prompt: string) => {
+      const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${nvidiaApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "mistralai/mistral-7b-instruct-v0.3",
+          messages: [
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.1,
+          max_tokens: 10,
+        }),
+      });
+      const json = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+      return json.choices?.[0]?.message?.content ?? "no";
+    }
+  : undefined;
 
 // Regular Express middleware
 app.use(express.json());
@@ -54,6 +79,18 @@ app.use(
   }),
 );
 
+// General health check -------------------------------------------------
+app.get("/api/health", async (_req, res) => {
+  const redis = await cacheHealth();
+  res.json({
+    status: "ok",
+    uptime: process.uptime(),
+    redis,
+    nim: { configured: Boolean(nvidiaApiKey) },
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Cache health check --------------------------------------------------
 app.get("/api/cache/health", async (_req, res) => {
   const health = await cacheHealth();
@@ -61,7 +98,7 @@ app.get("/api/cache/health", async (_req, res) => {
 });
 
 // Latest scraped articles (cached) -----------------------------------
-app.get("/api/news/latest", async (req, res) => {
+app.get("/api/news/latest", rateLimiter({ max: 30, windowSec: 60, prefix: "rate:news" }), async (req, res) => {
   const force = req.query.force === "true";
 
   try {
@@ -91,6 +128,28 @@ app.post(
 
     if (!topic || typeof topic !== "string") {
       res.status(400).json({ error: "A valid 'topic' string is required." });
+      return;
+    }
+
+    // Fetch cached articles to check if the topic matches a known headline
+    let knownHeadlines: string[] = [];
+    try {
+      const allArticles = await fetchAllNewsCached();
+      knownHeadlines = allArticles.map((a: { title: string }) => a.title);
+    } catch {
+      // Non-blocking - headlines from the feed just won't auto-pass Layer 3
+    }
+
+    // Input guardrail (3 layers: structural -> regex -> NIM classifier)
+    const guardrailResult = await checkInput(topic, inputClassifier, knownHeadlines);
+    if (!guardrailResult.allowed) {
+      const sessionId = crypto.randomUUID();
+      setSession(sessionId, { topic, status: "rejected", createdAt: Date.now() });
+      res.status(202).json({
+        sessionId,
+        status: "rejected",
+        message: guardrailResult.reason,
+      });
       return;
     }
 
@@ -138,6 +197,55 @@ app.get("/api/news/compare/status/:sessionId", async (req, res) => {
     elapsed: Date.now() - session.createdAt,
     result: session.result || null,
   });
+});
+
+// Daily brief -----------------------------------------------
+app.get("/api/brief/latest", rateLimiter({ max: 10, windowSec: 60, prefix: "rate:brief" }), async (_req, res) => {
+  try {
+    const brief = await getOrGenerateBrief(inputClassifier);
+    if (!brief) {
+      res.status(404).json({ error: "No brief available yet." });
+      return;
+    }
+    res.json(brief);
+  } catch (error: any) {
+    log.error({ err: error }, "Failed to get brief");
+    res.status(500).json({ error: "Failed to generate brief." });
+  }
+});
+
+// Admin: force brief refresh (gated by ADMIN_KEY)
+app.post("/api/admin/brief/refresh", rateLimiter({ max: 3, windowSec: 60, prefix: "rate:admin-brief" }), async (req, res) => {
+  const adminKey = process.env.ADMIN_KEY;
+  if (!adminKey || req.headers.authorization !== `Bearer ${adminKey}`) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const sessionId = crypto.randomUUID();
+    setSession(sessionId, { topic: "brief-refresh", status: "queued", createdAt: Date.now() });
+
+    // Fire-and-forget brief generation
+    generateBrief(inputClassifier)
+      .then((brief) => {
+        setSessionStatus(sessionId, "completed");
+        log.info({ stories: brief.topStories.length }, "Admin brief refresh complete");
+      })
+      .catch((err) => {
+        setSessionStatus(sessionId, "failed");
+        log.error({ err }, "Admin brief refresh failed");
+      });
+
+    res.status(202).json({
+      sessionId,
+      status: "queued",
+      message: "Brief refresh started.",
+    });
+  } catch (error: any) {
+    log.error({ err: error }, "Failed to trigger brief refresh");
+    res.status(500).json({ error: "Failed to trigger brief refresh." });
+  }
 });
 
 // Configure Vite middleware for development or Static Asset serving for production

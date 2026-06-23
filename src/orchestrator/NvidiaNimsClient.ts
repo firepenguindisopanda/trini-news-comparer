@@ -28,6 +28,8 @@ export interface NvidiaNimRequest {
   temperature?: number;
   maxTokens?: number;
   requestId: string;
+  /** JSON Schema object. If provided, sent as nvext.guided_json for structured output. */
+  responseSchema?: Record<string, unknown>;
 }
 
 export interface NvidiaNimCost {
@@ -180,7 +182,7 @@ export class NvidiaNimsClient {
       try {
         await this.checkRateLimit(requestId);
 
-        const response = await this.http.post(this.endpoint, {
+        const body: Record<string, unknown> = {
           model,
           messages: [
             { role: "system", content: systemPrompt },
@@ -188,7 +190,13 @@ export class NvidiaNimsClient {
           ],
           temperature,
           max_tokens: maxTokens,
-        });
+        };
+
+        if (req.responseSchema) {
+          body.nvext = { guided_json: req.responseSchema };
+        }
+
+        const response = await this.http.post(this.endpoint, body);
 
         const choice = response.data.choices?.[0];
         if (!choice?.message?.content) {

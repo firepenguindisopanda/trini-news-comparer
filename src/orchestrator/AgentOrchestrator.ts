@@ -19,6 +19,11 @@ import {
   SOURCE_ANALYST_PROMPT,
   CROSS_SOURCE_SYNTHESIZER_PROMPT,
   VERIFIER_PROMPT,
+  TOPIC_EXPANDER_SCHEMA,
+  ARTICLE_MATCHER_SCHEMA,
+  SOURCE_ANALYST_SCHEMA,
+  CROSS_SOURCE_SYNTHESIZER_SCHEMA,
+  VERIFIER_SCHEMA,
 } from "./prompts.js";
 import type { ScrapedArticle, NewsSourceReport, NewsComparisonResult } from "../types.js";
 import { publishProgress, type ProgressPayload } from "../../server/services/pusher.js";
@@ -26,8 +31,48 @@ import {
   setCachedComparison,
 } from "../../server/services/cache.js";
 import { childLogger } from "../../server/services/logger.js";
+import { applyOutputGuardrail } from "../../server/services/outputGuardrail.js";
+import { getCheckpoint, setCheckpoint } from "../../server/services/cache.js";
 
 const log = childLogger({ module: "orchestrator" });
+
+//
+// Pipeline planning (effort scaling)
+//
+
+type PipelineMode = "no_coverage" | "single_source" | "cross_source";
+
+interface PipelinePlan {
+  mode: PipelineMode;
+  skipAnalysts: boolean;
+  skipSynthesis: boolean;
+}
+
+function planPipeline(matched: MatchedArticle[]): PipelinePlan {
+  const matchCount = matched.length;
+  if (matchCount === 0) {
+    return { mode: "no_coverage", skipAnalysts: true, skipSynthesis: true };
+  }
+
+  const sourceCount = new Set(matched.map((a) => a.source)).size;
+  if (sourceCount <= 1) {
+    return { mode: "single_source", skipAnalysts: false, skipSynthesis: true };
+  }
+
+  return { mode: "cross_source", skipAnalysts: false, skipSynthesis: false };
+}
+
+/** Quick non-crypto hash for article-set invalidation. */
+function simpleHash(items: string[]): string {
+  let h = 0;
+  for (const s of items) {
+    for (let i = 0; i < s.length; i++) {
+      h = (h << 5) - h + s.charCodeAt(i);
+      h |= 0;
+    }
+  }
+  return Math.abs(h).toString(36);
+}
 
 //
 // Types
@@ -54,11 +99,16 @@ interface SourceAnalystOutput extends NewsSourceReport {
   confidenceScore: number; articlesAnalyzed: number;
 }
 
+interface GroundTruthItem {
+  sourceName: string;
+  articleTitles: { title: string; link: string }[];
+}
 interface CrossSourceSynthesizerInput {
   topic: string; summary: string; sourceReports: NewsSourceReport[];
+  groundTruth: GroundTruthItem[];
 }
 interface CrossSourceSynthesizerOutput {
-  synthesis: { overallAnalysis: string; keyTakeaway: string };
+  synthesis: { overallAnalysis: string; keyTakeaway: string; claims?: Array<{ claim: string; sourceName: string; articleUrl?: string }> };
   detectedBiasPatterns: string[];
   sourceAgreementLevel: "high" | "medium" | "low";
   confidenceScore: number;
@@ -151,6 +201,7 @@ export class AgentOrchestrator {
         systemPrompt: TOPIC_EXPANDER_PROMPT,
         userContent: JSON.stringify({ topic }),
         requestId: `topic-expand-${sessionId.slice(0, 8)}`,
+        responseSchema: TOPIC_EXPANDER_SCHEMA,
       });
 
       const output: TopicExpanderOutput = {
@@ -191,9 +242,9 @@ export class AgentOrchestrator {
       const { data } = await this.nvidia.chat<ArticleMatcherOutput>({
         model: this.cfg.matcherModel,
         systemPrompt: ARTICLE_MATCHER_PROMPT,
-        // Limit to 30 articles — the 70B model is too slow with more
         userContent: JSON.stringify({ expandedTopic: expanded, articles: articles.slice(0, 30) }),
         requestId: `match-${sessionId.slice(0, 8)}`,
+        responseSchema: ARTICLE_MATCHER_SCHEMA,
       });
 
       const matched = (data.matchedArticles ?? []).map((a: any) => ({
@@ -278,6 +329,7 @@ export class AgentOrchestrator {
         systemPrompt: SOURCE_ANALYST_PROMPT,
         userContent: JSON.stringify(input),
         requestId: `analyst-${input.sourceName.replace(/\s+/g, "-")}-${Date.now()}`,
+        responseSchema: SOURCE_ANALYST_SCHEMA,
       });
 
       return {
@@ -310,6 +362,26 @@ export class AgentOrchestrator {
   }
 
   //
+  // Ground-truth compression - extracts raw article titles per source
+  // so the Synthesizer reasons against actual headlines, not just summaries.
+  //
+
+  private compressGroundTruth(
+    matched: MatchedArticle[],
+  ): GroundTruthItem[] {
+    const bySource = new Map<string, { title: string; link: string }[]>();
+    for (const a of matched) {
+      const arr = bySource.get(a.source) ?? [];
+      arr.push({ title: a.title, link: a.link });
+      bySource.set(a.source, arr);
+    }
+    return [...bySource.entries()].map(([sourceName, articleTitles]) => ({
+      sourceName,
+      articleTitles: articleTitles.slice(0, 3), // top 3 per source
+    }));
+  }
+
+  //
   // Agent 4 - CrossSourceSynthesizer
   //
 
@@ -326,6 +398,7 @@ export class AgentOrchestrator {
         systemPrompt: CROSS_SOURCE_SYNTHESIZER_PROMPT,
         userContent: JSON.stringify(input),
         requestId: `synthesize-${sessionId.slice(0, 8)}`,
+        responseSchema: CROSS_SOURCE_SYNTHESIZER_SCHEMA,
       });
       const syn = data.synthesis || data as any;
       return {
@@ -335,6 +408,7 @@ export class AgentOrchestrator {
             input.sourceReports.map(s => `${s.sourceName}: ${s.toneAngle}.`).join(" "),
           keyTakeaway: syn.keyTakeaway ||
             `Each outlet framed "${input.topic}" with different editorial priorities. Compare the emphasized vs omitted details above.`,
+          claims: Array.isArray(syn.claims) ? syn.claims : [],
         },
         detectedBiasPatterns: Array.isArray(data.detectedBiasPatterns) ? data.detectedBiasPatterns : [],
         sourceAgreementLevel: ["high", "medium", "low"].includes(data.sourceAgreementLevel ?? "")
@@ -394,6 +468,7 @@ export class AgentOrchestrator {
         systemPrompt: VERIFIER_PROMPT,
         userContent: JSON.stringify(input),
         requestId: `verify-${sessionId.slice(0, 8)}`,
+        responseSchema: VERIFIER_SCHEMA,
       });
 
       const output: VerifierOutput = {
@@ -427,69 +502,161 @@ export class AgentOrchestrator {
     await this.pub(sessionId, "orchestrator", "started", `Multi-agent analysis for "${topic}"`, 0,
       { sessionId });
 
-    // Agent 1: Topic Expansion ---
-    const expanded = await this.expandTopic(topic, sessionId);
-
-    // Agent 2: Article Matching ---
-    const matchedOutput = await this.matchArticles(expanded, scrapedArticles, sessionId);
-
-    // Agent 3: Source Analysis (PARALLEL) ---
-    const bySource = new Map<string, MatchedArticle[]>();
-    for (const article of matchedOutput.matchedArticles) {
-      const arr = bySource.get(article.source) ?? [];
-      arr.push(article);
-      bySource.set(article.source, arr);
+    // Agent 1: Topic Expansion (checkpointable - independent of articles) ---
+    const expanderCheck = await getCheckpoint<TopicExpanderOutput>(topic, "expander");
+    let expanded: TopicExpanderOutput;
+    if (expanderCheck) {
+      expanded = expanderCheck.data;
+      log.info({ topic }, "Loaded TopicExpander from checkpoint");
+      await this.pub(sessionId, "topicExpander", "completed", "Loaded from cache", 20);
+    } else {
+      expanded = await this.expandTopic(topic, sessionId);
+      await setCheckpoint(topic, "expander", expanded);
     }
 
-    await this.pub(sessionId, "sourceAnalysts", "started",
-      `Analyzing ${bySource.size} sources in parallel…`, 45);
+    // Agent 2: Article Matching (checkpoint invalidated if articles changed) ---
+    const matcherCheck = await getCheckpoint<ArticleMatcherOutput>(topic, "matcher");
+    let matchedOutput: ArticleMatcherOutput;
+    if (matcherCheck && matcherCheck.articleSetHash === simpleHash(scrapedArticles.map(a => a.link))) {
+      matchedOutput = matcherCheck.data;
+      log.info({ topic }, "Loaded ArticleMatcher from checkpoint");
+      await this.pub(sessionId, "articleMatcher", "completed", "Loaded from cache", 40);
+    } else {
+      matchedOutput = await this.matchArticles(expanded, scrapedArticles, sessionId);
+      await setCheckpoint(topic, "matcher", matchedOutput, scrapedArticles);
+    }
 
-    const analystPromises = [...bySource.entries()].map(([sourceName, articles]) =>
-      this.analyzeSource({ sourceName, matchedArticles: articles, allArticles: scrapedArticles, topic })
-        .catch((err) => {
-          log.warn({ sourceName, err: (err as Error).message }, "SourceAnalyst failed");
-          return null;
-        }),
-    );
-    const analystResults = await Promise.all(analystPromises);
-    const validReports: NewsSourceReport[] = analystResults.filter(
-      (r): r is SourceAnalystOutput => r !== null && r.confidenceScore > 0.2,
-    );
+    // Pipeline planning (effort scaling) ---
+    const plan = planPipeline(matchedOutput.matchedArticles);
+    await this.pub(sessionId, "planner", "completed",
+      `Plan: ${plan.mode}`, 42, { plan });
 
-    await this.pub(sessionId, "sourceAnalysts", "completed",
-      `Analyzed ${validReports.length} sources`, 60,
-      { sourceCount: validReports.length, sources: validReports.map((r) => r.sourceName) });
+    let validReports: NewsSourceReport[] = [];
 
-    // Agent 4: Cross-Source Synthesis ---
-    const synthesizerOutput = await this.synthesize({
-      topic: expanded.expandedTopic,
-      summary: matchedOutput.summary,
-      sourceReports: validReports,
-    }, sessionId);
+    if (plan.mode === "no_coverage") {
+      await this.pub(sessionId, "sourceAnalysts", "skipped",
+        "No relevant articles found - skipping analysis", 60);
+    } else {
+      // Agent 3: Source Analysis (PARALLEL) ---
+      const bySource = new Map<string, MatchedArticle[]>();
+      for (const article of matchedOutput.matchedArticles) {
+        const arr = bySource.get(article.source) ?? [];
+        arr.push(article);
+        bySource.set(article.source, arr);
+      }
 
-    // Agent 5: Verification ---
-    const verifierOutput = await this.verify({
-      originalArticles: scrapedArticles,
-      sourceReports: validReports,
-      synthesis: synthesizerOutput.synthesis,
-      detectedBiasPatterns: synthesizerOutput.detectedBiasPatterns,
-      topic,
-    }, sessionId);
+      await this.pub(sessionId, "sourceAnalysts", "started",
+        `Analyzing ${bySource.size} sources in parallel…`, 45);
+
+      const analystPromises = [...bySource.entries()].map(([sourceName, articles]) =>
+        this.analyzeSource({ sourceName, matchedArticles: articles, allArticles: scrapedArticles, topic })
+          .catch((err) => {
+            log.warn({ sourceName, err: (err as Error).message }, "SourceAnalyst failed");
+            return null;
+          }),
+      );
+      const analystResults = await Promise.all(analystPromises);
+      validReports = analystResults.filter(
+        (r): r is SourceAnalystOutput => r !== null && r.confidenceScore > 0.2,
+      );
+
+      await this.pub(sessionId, "sourceAnalysts", "completed",
+        `Analyzed ${validReports.length} sources`, 60,
+        { sourceCount: validReports.length, sources: validReports.map((r) => r.sourceName) });
+    }
+
+    // Agent 4: Cross-Source Synthesis (skip if single_source mode or no coverage) ---
+    let synthesizerOutput: CrossSourceSynthesizerOutput | null = null;
+    if (!plan.skipSynthesis && validReports.length >= 2) {
+      const synthesizerCheck = await getCheckpoint<CrossSourceSynthesizerOutput>(topic, "synthesizer");
+      if (synthesizerCheck) {
+        synthesizerOutput = synthesizerCheck.data;
+        log.info({ topic }, "Loaded Synthesizer from checkpoint");
+        await this.pub(sessionId, "synthesizer", "completed", "Loaded from cache", 85);
+      } else {
+        const groundTruth = this.compressGroundTruth(matchedOutput.matchedArticles);
+        synthesizerOutput = await this.synthesize({
+          topic: expanded.expandedTopic,
+          summary: matchedOutput.summary,
+          sourceReports: validReports,
+          groundTruth,
+        }, sessionId);
+        await setCheckpoint(topic, "synthesizer", synthesizerOutput);
+      }
+    } else {
+      await this.pub(sessionId, "synthesizer", "skipped",
+        plan.mode === "single_source" ? "Single source - no cross-source synthesis needed" : "No coverage", 85);
+    }
+
+    // Agent 5: Verification (skip if no synthesis) ---
+    let verifierOutput: VerifierOutput = { verified: true, issues: [], corrections: null, confidenceScore: 1, verificationNotes: "" };
+    if (synthesizerOutput) {
+      const verifierCheck = await getCheckpoint<VerifierOutput>(topic, "verifier");
+      if (verifierCheck) {
+        verifierOutput = verifierCheck.data;
+        log.info({ topic }, "Loaded Verifier from checkpoint");
+        await this.pub(sessionId, "verifier", "completed", "Loaded from cache", 95);
+      } else {
+        verifierOutput = await this.verify({
+          originalArticles: scrapedArticles,
+          sourceReports: validReports,
+          synthesis: synthesizerOutput.synthesis,
+          detectedBiasPatterns: synthesizerOutput.detectedBiasPatterns,
+          topic,
+        }, sessionId);
+        await setCheckpoint(topic, "verifier", verifierOutput);
+      }
+    }
 
     // Assemble final result ---
     const result: NewsComparisonResult = {
       topic,
-      summary: matchedOutput.summary,
+      summary: plan.mode === "no_coverage"
+        ? `No coverage found for "${topic}".`
+        : matchedOutput.summary,
       lastUpdated: new Date().toISOString(),
-      synthesis: {
-        overallAnalysis: synthesizerOutput.synthesis.overallAnalysis,
-        keyTakeaway: synthesizerOutput.synthesis.keyTakeaway,
-      },
+      synthesis: synthesizerOutput
+        ? {
+            overallAnalysis: synthesizerOutput.synthesis.overallAnalysis,
+            keyTakeaway: synthesizerOutput.synthesis.keyTakeaway,
+          }
+        : {
+            overallAnalysis: plan.mode === "no_coverage"
+              ? `No news articles found covering "${topic}". Try a different search term.`
+              : `Analysis of "${topic}" is based on a single source. Cross-source comparison requires articles from multiple outlets.`,
+            keyTakeaway: "Cross-referencing multiple news sources reveals editorial framing differences.",
+          },
       sourcesFound: validReports,
+      verificationStatus: verifierOutput.verified ? "verified" : "flagged",
+      verificationIssues: verifierOutput.issues,
     };
 
-    if (!verifierOutput.verified && verifierOutput.issues.length > 0) {
-      log.warn({ topic, issues: verifierOutput.issues }, "Verification issues detected");
+    // Output guardrail: PII redaction + optional content safety check
+    const contentCheck = this.cfg.nvidiaApiKey
+      ? async (prompt: string) => {
+          const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${this.cfg.nvidiaApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "mistralai/mistral-7b-instruct-v0.3",
+              messages: [{ role: "user", content: prompt }],
+              temperature: 0.1,
+              max_tokens: 10,
+            }),
+          });
+          const json = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+          return json.choices?.[0]?.message?.content ?? "no";
+        }
+      : undefined;
+
+    const safe = await applyOutputGuardrail(result as unknown as Record<string, unknown>, contentCheck);
+    if (!safe) {
+      result.verificationStatus = "flagged";
+      result.verificationIssues.push("Content flagged by output safety check.");
+      log.warn({ topic }, "Output guardrail flagged content");
     }
 
     // Cache result

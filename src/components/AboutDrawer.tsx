@@ -120,7 +120,7 @@ export default function AboutDrawer({ open, onClose }: AboutDrawerProps) {
                 </h3>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2.5">
                   <p className="text-xs text-blue-900 leading-relaxed">
-                    This tool is a <strong>work in progress</strong> — a personal exercise in
+                    This tool is a <strong>work in progress</strong> - a personal exercise in
                     building, experimenting, and learning. The long-term goal is to use it as a
                     practice ground for <strong>identifying and improving critical thinking skills</strong>:
                     recognising media bias, spotting framing choices, noticing what gets emphasised

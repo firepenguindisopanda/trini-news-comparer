@@ -6,7 +6,7 @@
 #
 # Free tier:
 #   - Web service spins down after 15 min idle (cold start ~30s on next visit)
-#   - Worker is OPTIONAL — the app works without it (cache misses scrape live)
+#   - Worker is OPTIONAL - the app works without it (cache misses scrape live)
 #   - 750 hours/month total across all services
 #
 # Upgrade to Starter ($7/mo each) for:
@@ -51,7 +51,7 @@ services:
       - key: APP_URL
         value: https://trinidad-news-comparer.onrender.com  # change me
 
-  # Background Worker (optional — comment out on free tier to save hours)
+  # Background Worker (optional - comment out on free tier to save hours)
   # - type: worker
   #   name: trinidad-news-comparer-worker
   #   runtime: node

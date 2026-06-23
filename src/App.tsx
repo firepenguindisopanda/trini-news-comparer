@@ -116,9 +116,13 @@ export default function App() {
             addToHistory(topic, resultData.summary);
           }
           setLoading(false);
-        } else if (data.status === "failed") {
+        } else if (data.status === "failed" || data.status === "rejected") {
           clearInterval(interval);
-          setError("Comparison failed. Please try again.");
+          setError(
+            data.status === "failed"
+              ? "Comparison failed. Please try again."
+              : data.message || "Topic was rejected.",
+          );
           setLoading(false);
         }
       } catch {
@@ -183,8 +187,12 @@ export default function App() {
 
       // 202 Accepted - async mode with Pusher / polling
       if (response.status === 202) {
+        if (data.status === "rejected") {
+          setError(data.message || "Input rejected.");
+          setLoading(false);
+          return;
+        }
         setSessionId(data.sessionId);
-        // Don't set loading=false - the Pusher hook or poll loop will
         return;
       }
 
@@ -252,85 +260,90 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-1 mt-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          
-          {/* Left Column - Controls, Preset Choices, Search History */}
-          <div className="lg:col-span-1 space-y-6">
-            
-            {/* The Slant Engine Search Form */}
-            <div className="bg-white rounded-md border border-slate-200/80 p-5 shadow-xs">
-              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center">
-                <Search className="w-3.5 h-3.5 mr-1" />
-                Select News Subject
-              </h2>
-              
-              <form onSubmit={(e) => { e.preventDefault(); handleCompare(topic); }} className="space-y-3">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                    placeholder="e.g. WASA water supply, fuel excise tax, Carnival launch..."
-                    disabled={loading}
-                    className="w-full text-sm bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 rounded-md px-4 py-3 pb-3 pr-10 focus:ring-2 focus:ring-red-500 focus:bg-white focus:outline-hidden transition-all duration-200"
-                    id="search-input"
-                  />
-                  <div className="absolute right-3 top-3.5 text-slate-400">
-                    <Newspaper className="w-4 h-4" />
-                  </div>
-                </div>
 
-                <button
-                  type="submit"
-                  disabled={loading || !topic.trim()}
-                  className={`w-full py-2.5 px-4 rounded-md font-bold text-xs uppercase tracking-wide flex items-center justify-center space-x-2 transition-all duration-200 ${
-                    loading || !topic.trim()
-                      ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                      : "bg-slate-900 text-white hover:bg-slate-800 shadow-xs"
-                  }`}
-                  id="search-button"
-                >
-                  {loading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>{jobState.progress > 0 ? `${jobState.progress}%` : "Queued..."}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Analyze Discrepancies</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </>
-                  )}
-                </button>
-              </form>
-            </div>
-            {/* Caribbean presets */}
-            <div className="bg-white rounded-md border border-slate-200/80 p-5 shadow-xs">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center justify-between">
-                <span className="flex items-center">
-                  <TrendingUp className="w-3.5 h-3.5 mr-1" />
-                  Current Focus Presets
-                </span>
-              </h3>
-              <div className="space-y-2">
-                {PRESET_TOPICS.map((p, idx) => (
+          {/* TOP ROW: Search + Presets (left) side by side with Live Feed (right) */}
+          <div className="lg:col-span-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* Left: Search Form + Presets */}
+            <div className="space-y-6">
+              
+              {/* The Slant Engine Search Form */}
+              <div className="bg-white rounded-md border border-slate-200/80 p-5 shadow-xs">
+                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center">
+                  <Search className="w-3.5 h-3.5 mr-1" />
+                  Select News Subject
+                </h2>
+                
+                <form onSubmit={(e) => { e.preventDefault(); handleCompare(topic); }} className="space-y-3">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={topic}
+                      onChange={(e) => setTopic(e.target.value)}
+                      placeholder="e.g. WASA water supply, fuel excise tax, Carnival launch..."
+                      disabled={loading}
+                      className="w-full text-sm bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 rounded-md px-4 py-3 pb-3 pr-10 focus:ring-2 focus:ring-red-500 focus:bg-white focus:outline-hidden transition-all duration-200"
+                      id="search-input"
+                    />
+                    <div className="absolute right-3 top-3.5 text-slate-400">
+                      <Newspaper className="w-4 h-4" />
+                    </div>
+                  </div>
+
                   <button
-                    key={idx}
-                    onClick={() => {
-                      setTopic(p.query);
-                      handleCompare(p.query);
-                    }}
-                    disabled={loading}
-                    className="w-full text-left p-2.5 text-xs text-slate-700 hover:text-red-700 hover:bg-red-50/50 rounded-md border border-slate-100 hover:border-red-100/60 transition-all duration-150 block leading-snug"
-                    id={`preset-btn-${idx}`}
+                    type="submit"
+                    disabled={loading || !topic.trim()}
+                    className={`w-full py-2.5 px-4 rounded-md font-bold text-xs uppercase tracking-wide flex items-center justify-center space-x-2 transition-all duration-200 ${
+                      loading || !topic.trim()
+                        ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                        : "bg-slate-900 text-white hover:bg-slate-800 shadow-xs"
+                    }`}
+                    id="search-button"
                   >
-                    {p.label}
+                    {loading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>{jobState.progress > 0 ? `${jobState.progress}%` : "Queued..."}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Analyze Discrepancies</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </>
+                    )}
                   </button>
-                ))}
+                </form>
+              </div>
+
+              {/* Caribbean presets */}
+              <div className="bg-white rounded-md border border-slate-200/80 p-5 shadow-xs">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center justify-between">
+                  <span className="flex items-center">
+                    <TrendingUp className="w-3.5 h-3.5 mr-1" />
+                    Current Focus Presets
+                  </span>
+                </h3>
+                <div className="space-y-2">
+                  {PRESET_TOPICS.map((p, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setTopic(p.query);
+                        handleCompare(p.query);
+                      }}
+                      disabled={loading}
+                      className="w-full text-left p-2.5 text-xs text-slate-700 hover:text-red-700 hover:bg-red-50/50 rounded-md border border-slate-100 hover:border-red-100/60 transition-all duration-150 block leading-snug"
+                      id={`preset-btn-${idx}`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Live Scraped Feed Card */}
-            <div className="bg-white rounded-md border border-slate-200/80 p-5 shadow-xs flex flex-col h-[380px]">
+            {/* Right: Live Scraped Feed Card */}
+            <div className="bg-white rounded-md border border-slate-200/80 p-5 shadow-xs flex flex-col h-[380px] lg:max-h-[480px]">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">
                   <Newspaper className="w-3.5 h-3.5 mr-1 text-slate-500" />
@@ -408,7 +421,10 @@ export default function App() {
                 )}
               </div>
             </div>
+          </div>
 
+          {/* BOTTOM ROW: History (left) + Results Area (right) */}
+          <div className="lg:col-span-1 space-y-6">
             {/* History stack */}
             {history.length > 0 && (
               <div className="bg-white rounded-md border border-slate-200/80 p-5 shadow-xs">
@@ -504,7 +520,9 @@ export default function App() {
                       {error}
                     </p>
                     <p className="text-xs text-rose-500 mt-2 font-mono">
-                      Please try rephrasing your topic with simpler keywords (e.g., "Kamla Opposition Trinidad" or "WASA water scheduling Trinidad").
+                      {error?.toLowerCase().includes("news-related")
+                        ? "Headlines should work - try clicking a news headline from the live feed above."
+                        : 'Please try rephrasing your topic with simpler keywords (e.g., "Kamla Opposition Trinidad" or "WASA water scheduling Trinidad").'}
                     </p>
                   </div>
                 </motion.div>
@@ -585,6 +603,23 @@ export default function App() {
                       <p className="text-xs text-slate-350 leading-relaxed font-sans font-light">
                         {result.synthesis.overallAnalysis}
                       </p>
+                      {result.synthesis.claims && result.synthesis.claims.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-red-800/30">
+                          <p className="text-[9px] uppercase tracking-wider text-red-400/70 font-bold mb-1.5">Claim Sources</p>
+                          <ul className="space-y-1">
+                            {result.synthesis.claims.map((c, i) => (
+                              <li key={i} className="text-[10px] text-slate-400 leading-tight flex items-start gap-1">
+                                <span className="text-red-400/60 mt-0.5">•</span>
+                                <span>
+                                  <span className="text-slate-300">{c.claim}</span>
+                                  <span className="text-red-400/60"> - </span>
+                                  <span className="text-red-400/80 font-semibold">{c.sourceName}</span>
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
 
                     {/* How to read takeaway */}
